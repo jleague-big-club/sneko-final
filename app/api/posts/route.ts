@@ -36,7 +36,13 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json(
-    { posts: data },
+    { 
+      posts: data,
+      debug: {
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + "...",
+        key_hint: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 5) + "..."
+      }
+    },
     {
       headers: {
         "Cache-Control": "no-store, max-age=0, must-revalidate",
