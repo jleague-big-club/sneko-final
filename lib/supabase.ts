@@ -14,4 +14,4 @@ export const supabaseAdmin = typeof window === 'undefined'
   : null as any;
 
 // クライアントサイド用（anon key used）
-export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+export const supabaseClient = createClient(supabaseUrl!, supabaseAnonKey!);
