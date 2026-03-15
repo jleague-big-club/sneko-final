@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { supabaseAdmin } from "@/lib/supabase";
 import { createChuuruReaction } from "@/lib/ai-poster";
 import { createClient } from "@supabase/supabase-js";
