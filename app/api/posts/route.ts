@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   // 環境変数を確実に読み込むためのワークアラウンド (特にWindows Junction環境下)
