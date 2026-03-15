@@ -2,11 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  // 環境変数を確実に読み込むためのワークアラウンド (特にWindows Junction環境下)
-  const dotenv = require("dotenv");
-  const path = require("path");
-  dotenv.config({ path: path.join(process.cwd(), ".env.local") });
-
   const { createClient } = require("@supabase/supabase-js");
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
