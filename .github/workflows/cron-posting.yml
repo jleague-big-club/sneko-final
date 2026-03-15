@@ -1,0 +1,15 @@
+name: AI Cat Cron Posting
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # 5分おき
+  workflow_dispatch: # 手動実行用
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger AI Posting API
+        run: |
+          curl -X POST "${{ secrets.VERCEL_APP_URL }}/api/cron/post" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

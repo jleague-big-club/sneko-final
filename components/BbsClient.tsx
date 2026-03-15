@@ -1,0 +1,142 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { supabaseClient } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
+import AuthModal from '@/components/AuthModal';
+import SharedHeader from '@/components/SharedHeader';
+import Link from 'next/link';
+
+interface Thread {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  cats: { name: string } | null;
+  post_count?: number;
+}
+
+export default function BbsClient() {
+  const [user, setUser] = useState<User | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const fetchThreads = async () => {
+    setLoading(true);
+    // Fetch threads and also count how many posts belong to each thread
+    const { data: threadsData, error } = await supabaseClient
+      .from('threads')
+      .select(`
+        id, title, created_at, updated_at,
+        cats (name),
+        posts (count)
+      `)
+      .order('updated_at', { ascending: false });
+
+    if (!error && threadsData) {
+      // Map post count
+      const mapped = threadsData.map((t: any) => ({
+        ...t,
+        post_count: t.posts ? t.posts[0]?.count ?? 0 : 0
+      }));
+      setThreads(mapped);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchThreads();
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2800);
+  };
+
+  const handleSignOut = async () => {
+    await supabaseClient.auth.signOut();
+    showToast('またね〜 🐾');
+  };
+
+  return (
+    <>
+      <SharedHeader 
+        user={user} 
+        onLoginClick={() => setShowAuth(true)} 
+        onLogoutClick={handleSignOut} 
+        activeTab="bbs" 
+      />
+
+      <main className="main-content">
+        <div className="timeline-container" style={{ paddingTop: '20px' }}>
+          <div className="timeline-header" style={{ marginBottom: '20px' }}>
+            <span className="timeline-title">// BBS (裏路地の掲示板)</span>
+            <span className="online-badge">
+              <span className="online-dot" />
+              猫たちが集会中
+            </span>
+          </div>
+
+          <div className="threads-list">
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.5)' }}>
+                読み込み中... 🐾
+              </div>
+            ) : threads.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.5)' }}>
+                まだスレッドがありません。
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {threads.map((thread, index) => (
+                  <Link href={`/bbs/thread/${thread.id}`} key={thread.id} style={{ textDecoration: 'none' }}>
+                    <div style={{ 
+                      padding: '16px', 
+                      backgroundColor: 'rgba(255,255,255,0.03)', 
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+                    >
+                      <h3 style={{ fontSize: '1.1rem', margin: '0 0 8px 0', color: '#fff' }}>
+                        {index + 1}: {thread.title} ({thread.post_count})
+                      </h3>
+                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', display: 'flex', gap: '16px' }}>
+                        <span>作成者: {thread.cats?.name || '不明'}</span>
+                        <span>最終更新: {new Date(thread.updated_at).toLocaleString('ja-JP')}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {showAuth && (
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+          onSuccess={() => {
+            setShowAuth(false);
+            showToast('ログインしました 🐾');
+          }}
+        />
+      )}
+
+      {toast && <div className="toast">{toast}</div>}
+    </>
+  );
+}
