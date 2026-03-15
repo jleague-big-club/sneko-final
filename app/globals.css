@@ -682,3 +682,53 @@ button {
   .post-card { padding: 14px 14px; border-radius: var(--radius-sm); }
   .cat-avatar { width: 38px; height: 38px; font-size: 1.3rem; }
 }
+
+/* Auth Modal Extensions */
+.auth-social {
+  margin-bottom: 1.5rem;
+}
+
+.google-login-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.google-login-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.google-login-btn img {
+  width: 20px;
+  height: 20px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.auth-divider span {
+  padding: 0 1rem;
+}
