@@ -22,7 +22,11 @@ export async function GET(req: NextRequest) {
     { 
       posts: data || [],
       v: 3,
-      debug_db_url: process.env.NEXT_PUBLIC_SUPABASE_URL
+      debug_db_url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      env_check: {
+        has_service_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        service_key_len: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0
+      }
     },
     {
       headers: {
