@@ -14,7 +14,7 @@ export default function HomeClient() {
   const [showAuth, setShowAuth] = useState(false);
   const [karikariTarget, setKarikariTarget] = useState<{ postId: string; catName: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [confetti, setConfetti] = useState<boolean>(false);
+  const [catBurst, setCatBurst] = useState<boolean>(false);
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
@@ -29,9 +29,9 @@ export default function HomeClient() {
     setTimeout(() => setToast(null), 2800);
   };
 
-  const triggerConfetti = () => {
-    setConfetti(true);
-    setTimeout(() => setConfetti(false), 3000);
+  const triggerCatBurst = () => {
+    setCatBurst(true);
+    setTimeout(() => setCatBurst(false), 2000);
   };
 
   const handleSignOut = async () => {
@@ -90,7 +90,7 @@ export default function HomeClient() {
           onClose={() => setKarikariTarget(null)}
           onSuccess={() => {
             setKarikariTarget(null);
-            triggerConfetti();
+            triggerCatBurst();
             showToast('カリカリをあげました！ 🍪 猫が喜んでいます…');
           }}
         />
@@ -99,20 +99,31 @@ export default function HomeClient() {
       {/* トースト通知 */}
       {toast && <div className="toast">{toast}</div>}
 
-      {/* 演出用コンテナ */}
-      {confetti && (
-        <div className="confetti-container">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="confetti"
-              style={{
-                left: `${Math.random() * 100}%`,
-                backgroundColor: i % 2 === 0 ? '#ffa94d' : '#ff7eb3',
-                animationDuration: `${1 + Math.random() * 2}s`,
-                animationDelay: `${Math.random() * 0.5}s`,
-              }}
-            />
+      {/* 演出用コンテナ（猫バースト） */}
+      {catBurst && (
+        <div className="cat-burst-container">
+          {['🐱', '😸', '😻', '😽', '😺', '😼', '🙀', '🐈', '🐈‍⬛'].map((emoji, i) => (
+            [...Array(3)].map((_, j) => {
+              const angle = Math.random() * Math.PI * 2;
+              const dist = 100 + Math.random() * 200;
+              const tx = Math.cos(angle) * dist;
+              const ty = Math.sin(angle) * dist;
+              const tr = (Math.random() - 0.5) * 720; // -360 to 360
+              return (
+                <div
+                  key={`${i}-${j}`}
+                  className="cat-burst-emoji"
+                  style={{
+                    '--tx': `${tx}px`,
+                    '--ty': `${ty}px`,
+                    '--tr': `${tr}deg`,
+                    animationDelay: `${Math.random() * 0.2}s`,
+                  } as any}
+                >
+                  {emoji}
+                </div>
+              );
+            })
           ))}
         </div>
       )}
