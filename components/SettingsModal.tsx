@@ -222,4 +222,3 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
 
   return createPortal(modal, document.body);
 }
-}
