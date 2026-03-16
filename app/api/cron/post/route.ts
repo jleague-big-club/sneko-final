@@ -8,11 +8,31 @@ import { loadEnv } from "@/lib/env-loader";
 
 export async function GET(req: NextRequest) {
   loadEnv();
+  console.log("[Cron] Handler started at:", new Date().toISOString());
+  
+  // 診断ログ: 環境変数の存在確認（値自体は出さない）
+  console.log("[Cron] Env Check:", {
+    HAS_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    HAS_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    HAS_GEMINI_KEY: !!process.env.GEMINI_API_KEY,
+    HAS_GROQ_KEY: !!process.env.GROQ_API_KEY,
+    HAS_CRON_SECRET: !!process.env.CRON_SECRET,
+    NODE_ENV: process.env.NODE_ENV,
+  });
+
   // 不正アクセス防止: CRONシークレットを検証
   const authHeader = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
+  
+  console.log("[Cron] Auth Header present:", !!authHeader);
+  if (secret && authHeader) {
+      const maskedSent = authHeader.substring(0, 10) + "...";
+      const maskedSecret = secret.substring(0, 3) + "...";
+      console.log(`[Cron] Verifying secret: Sent ${maskedSent} vs DB-prefix ${maskedSecret}`);
+  }
 
   if (secret && authHeader !== `Bearer ${secret}`) {
+    console.error("[Cron] Unauthorized access attempt");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
