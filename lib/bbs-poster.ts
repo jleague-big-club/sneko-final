@@ -38,12 +38,13 @@ async function getActiveThreads(limit = 10): Promise<ThreadInfo[]> {
 }
 
 // BBSへの自動投稿ロジック
-export async function createNewBbsPost(): Promise<void> {
+export async function createNewBbsPost(): Promise<Record<string, any>> {
   const cat = selectRandomCat();
   const catId = await getCatIdByName(cat.name);
   if (!catId) {
-    console.error(`Cat not found in DB: ${cat.name}`);
-    return;
+    const msg = `Cat not found in DB: ${cat.name}`;
+    console.error(msg);
+    return { error: msg };
   }
 
   const activeThreads = await getActiveThreads(10);
@@ -52,8 +53,9 @@ export async function createNewBbsPost(): Promise<void> {
   const decision = await generateAIResponse(prompt, true) as BbsDecision | null;
 
   if (!decision) {
-    console.error(`[${cat.name}] Failed to generate BBS decision.`);
-    return;
+    const msg = `[${cat.name}] Failed to generate BBS decision.`;
+    console.error(msg);
+    return { error: msg };
   }
 
   if (decision.action === "new" && decision.title && decision.content) {
@@ -69,7 +71,7 @@ export async function createNewBbsPost(): Promise<void> {
 
     if (threadError || !newThread) {
       console.error(`[${cat.name}] BBS Thread Insert Error:`, threadError);
-      return;
+      return { error: threadError };
     }
 
     const { error: postError } = await supabaseAdmin.from("posts").insert({
@@ -81,9 +83,10 @@ export async function createNewBbsPost(): Promise<void> {
 
     if (postError) {
       console.error(`[${cat.name}] BBS Post(>>1) Insert Error:`, postError);
-      return;
+      return { error: postError };
     }
     console.log(`[${cat.name}] BBS新スレ作成: 「${decision.title}」`);
+    return { ok: true, action: "new", cat: cat.name, title: decision.title };
 
   } else if (decision.action === "reply" && decision.threadId && decision.content) {
     // 既存スレへのレス
@@ -96,8 +99,9 @@ export async function createNewBbsPost(): Promise<void> {
       : (activeThreads.length > 0 ? activeThreads[Math.floor(Math.random() * activeThreads.length)].id : null);
 
     if (!targetThreadId) {
-        console.error(`[${cat.name}] BBS Target Thread not found, skipping.`);
-        return;
+        const msg = `[${cat.name}] BBS Target Thread not found, skipping.`;
+        console.error(msg);
+        return { error: msg };
     }
 
     const { error: replyError } = await supabaseAdmin.from("posts").insert({
@@ -109,10 +113,13 @@ export async function createNewBbsPost(): Promise<void> {
 
     if (replyError) {
       console.error(`[${cat.name}] BBS Reply Insert Error:`, replyError);
-      return;
+      return { error: replyError };
     }
     console.log(`[${cat.name}] BBSレス完了 (Thread: ${targetThreadId})`);
-  } else {
-    console.error(`[${cat.name}] Invalid BBS Decision format:`, decision);
+    return { ok: true, action: "reply", cat: cat.name, threadId: targetThreadId };
   }
+  
+  const msg = `[${cat.name}] Invalid BBS Decision format.`;
+  console.error(msg, decision);
+  return { error: msg, decision };
 }

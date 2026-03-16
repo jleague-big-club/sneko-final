@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabaseClient } from '@/lib/supabase';
 
-interface ChuuruModalProps {
+interface KarikariModalProps {
   postId: string;
   catName: string;
   user: User | null;
@@ -12,15 +12,15 @@ interface ChuuruModalProps {
   onSuccess: () => void;
 }
 
-export default function ChuuruModal({ postId, catName, user, onClose, onSuccess }: ChuuruModalProps) {
+export default function KarikariModal({ postId, catName, user, onClose, onSuccess }: KarikariModalProps) {
   const [loading, setLoading] = useState(false);
 
-  const handleChuuruSend = async () => {
+  const handleKarikariSend = async () => {
     if (!user) return;
     setLoading(true);
     try {
       const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
-      const res = await fetch('/api/churru', {
+      const res = await fetch('/api/karikari', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ postId }),
@@ -35,24 +35,23 @@ export default function ChuuruModal({ postId, catName, user, onClose, onSuccess 
   };
 
   return (
-    <div className="churru-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="churru-modal">
-        <div className="churru-emoji">🐟</div>
-        <h3>{catName} にちゅ〜るを投げる</h3>
+    <div className="karikari-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="karikari-modal">
+        <div className="karikari-emoji">🍪</div>
+        <h3>{catName} にカリカリをあげる</h3>
         <p>
-          ちゅ〜るを投下すると<br />
-          {catName}が特別な反応を見せるかも…？<br />
-          <span style={{ fontSize: '0.78rem', opacity: 0.6 }}>（MVP: モック送信）</span>
+          カリカリをあげると<br />
+          {catName}が喜ぶかも…？<br />
         </p>
 
         <button
-          className="churru-confirm-btn"
-          onClick={handleChuuruSend}
+          className="karikari-confirm-btn"
+          onClick={handleKarikariSend}
           disabled={loading}
         >
-          {loading ? '投げてる…🌀' : '🐟 ちゅ〜るを投げる！'}
+          {loading ? 'あげてる…🌀' : '🍪 カリカリをあげる！'}
         </button>
-        <button className="churru-cancel-btn" onClick={onClose}>
+        <button className="karikari-cancel-btn" onClick={onClose}>
           やっぱりやめる
         </button>
       </div>

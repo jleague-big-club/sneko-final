@@ -4,7 +4,7 @@ import {
   CATS,
   buildPostPrompt,
   buildReplyPrompt,
-  buildChuuruPrompt,
+  buildKarikariPrompt,
   type CatPromptConfig,
 } from "@/lib/cat-prompts";
 
@@ -41,21 +41,22 @@ async function getRecentPosts(limit = 10) {
 }
 
 // 通常投稿を生成してDBに保存
-export async function createNewPost(): Promise<void> {
+export async function createNewPost(): Promise<Record<string, any>> {
   const cat = selectRandomCat();
   const catId = await getCatIdByName(cat.name);
   if (!catId) {
-    console.error(`Cat not found in DB: ${cat.name}`);
-    return;
+    const msg = `Cat not found in DB: ${cat.name}`;
+    console.error(msg);
+    return { error: msg };
   }
 
   // 10%の確率でリプライにする
   const shouldReply = Math.random() < 0.1;
 
   if (shouldReply) {
-    await createReplyPost(cat, catId);
+    return await createReplyPost(cat, catId);
   } else {
-    await createOriginalPost(cat, catId);
+    return await createOriginalPost(cat, catId);
   }
 }
 
@@ -63,7 +64,7 @@ export async function createNewPost(): Promise<void> {
 async function createOriginalPost(
   cat: CatPromptConfig,
   catId: string
-): Promise<void> {
+): Promise<Record<string, any>> {
   try {
     const content = await generateAIResponse(buildPostPrompt(cat));
     const { error: insertError } = await supabaseAdmin.from("posts").insert({
@@ -74,11 +75,13 @@ async function createOriginalPost(
     
     if (insertError) {
       console.error(`[${cat.name}] Supabase Insert Error:`, insertError);
-      return;
+      return { error: insertError };
     }
     console.log(`[${cat.name}] 投稿完了: ${content.substring(0, 30)}...`);
+    return { ok: true, cat: cat.name, content };
   } catch (err: any) {
     console.error(`[${cat.name}] Gemini API or other error:`, err?.message || err);
+    return { error: err?.message || err };
   }
 }
 
@@ -86,12 +89,11 @@ async function createOriginalPost(
 async function createReplyPost(
   cat: CatPromptConfig,
   catId: string
-): Promise<void> {
+): Promise<Record<string, any>> {
   const recentPosts = await getRecentPosts(5);
   if (recentPosts.length === 0) {
     // リプライ先がなければ通常投稿
-    await createOriginalPost(cat, catId);
-    return;
+    return await createOriginalPost(cat, catId);
   }
 
   // 自分以外の投稿からランダムに選ぶ
@@ -117,16 +119,18 @@ async function createReplyPost(
 
     if (insertError) {
       console.error(`[${cat.name}] Supabase Insert Reply Error:`, insertError);
-      return;
+      return { error: insertError };
     }
     console.log(`[${cat.name}] → [${targetCatName}] リプライ完了`);
+    return { ok: true, cat: cat.name, target: targetCatName, type: "reply" };
   } catch (err: any) {
     console.error(`[${cat.name}] Gemini API or other error in reply:`, err?.message || err);
+    return { error: err?.message || err };
   }
 }
 
-// ちゅ〜る受信後の特別リプライ生成
-export async function createChuuruReaction(
+// カリカリ受信後の特別リプライ生成（現在は停止中）
+export async function createKarikariReaction(
   postId: string
 ): Promise<string | null> {
   // 投稿情報を取得
@@ -145,7 +149,7 @@ export async function createChuuruReaction(
 
   try {
     const content = await generateAIResponse(
-      buildChuuruPrompt(cat, post.content)
+      buildKarikariPrompt(cat, post.content)
     );
 
     const { data: reactionPost } = await supabaseAdmin
@@ -161,7 +165,7 @@ export async function createChuuruReaction(
 
     return reactionPost?.id ?? null;
   } catch (err) {
-    console.error("ちゅ〜るリアクション生成失敗:", err);
+    console.error("カリカリリアクション生成失敗:", err);
     return null;
   }
 }

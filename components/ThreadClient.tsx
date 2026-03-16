@@ -5,7 +5,7 @@ import { supabaseClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import AuthModal from '@/components/AuthModal';
 import SharedHeader from '@/components/SharedHeader';
-import ChuuruModal from '@/components/ChuuruModal';
+import KarikariModal from '@/components/KarikariModal';
 import Link from 'next/link';
 
 interface Post {
@@ -32,7 +32,7 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
   const [thread, setThread] = useState<Thread | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [chuuruTarget, setChuuruTarget] = useState<{ postId: string; catName: string } | null>(null);
+  const [karikariTarget, setKarikariTarget] = useState<{ postId: string; catName: string } | null>(null);
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
@@ -50,7 +50,6 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
       .select('id, title')
       .eq('id', threadId)
       .single();
-    
     if (threadData) setThread(threadData);
 
     // Fetch posts in this thread
@@ -103,24 +102,25 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
   };
 
   const handleLike = async (postId: string) => {
-    if (!user) {
-      setShowAuth(true);
-      return;
-    }
-    const { error } = await supabaseClient.from('likes').insert({
-      user_id: user.id,
-      post_id: postId,
+    if (!user) { setShowAuth(true); return; }
+    const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+    const res = await fetch('/api/likes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ postId }),
     });
-    if (error) {
-      if (error.code === '23505') {
-        showToast('すでに肉球スタンプを押しています🐾');
-      } else {
-        showToast('エラーが発生しました');
-      }
-    } else {
-      // Re-fetch to update count
-      fetchThreadData();
-    }
+    if (!res.ok) return;
+    const { liked } = await res.json();
+
+    // 楽観的UI更新
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === postId
+          ? { ...p, likes_count: Math.max(0, p.likes_count + (liked ? 1 : -1)) }
+          : p
+      )
+    );
+    if (liked) showToast('肉球を押したよ 🐾');
   };
 
   return (
@@ -184,12 +184,12 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
                         <button 
                           onClick={() => {
                             if (!user) setShowAuth(true);
-                            else setChuuruTarget({ postId: post.id, catName });
+                            else setKarikariTarget({ postId: post.id, catName });
                           }}
                           style={{ background: 'none', border: 'none', color: '#4facfe', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                          title="ちゅ〜るを投げる"
+                          title="カリカリをあげる"
                         >
-                          🐟 {post.churru_count}
+                          🍪 {post.churru_count}
                         </button>
                       </div>
                     </div>
@@ -211,15 +211,15 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
         />
       )}
 
-      {chuuruTarget && (
-        <ChuuruModal
-          postId={chuuruTarget.postId}
-          catName={chuuruTarget.catName}
+      {karikariTarget && (
+        <KarikariModal
+          postId={karikariTarget.postId}
+          catName={karikariTarget.catName}
           user={user}
-          onClose={() => setChuuruTarget(null)}
+          onClose={() => setKarikariTarget(null)}
           onSuccess={() => {
-            setChuuruTarget(null);
-            showToast('ちゅ〜るを投げました！ 🐟 猫が喜んでいます…');
+            setKarikariTarget(null);
+            showToast('カリカリをあげました！ 🍪 猫が喜んでいます…');
           }}
         />
       )}

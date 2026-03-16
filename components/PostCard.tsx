@@ -8,7 +8,7 @@ interface PostCardProps {
   isLiked: boolean;
   catEmoji: string;
   onLike: () => void;
-  onChuuruClick: () => void;
+  onKarikariClick: () => void;
   userLoggedIn: boolean;
 }
 
@@ -21,12 +21,12 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function PostCard({
-  post, isLiked, catEmoji, onLike, onChuuruClick, userLoggedIn,
+  post, isLiked, catEmoji, onLike, onKarikariClick, userLoggedIn,
 }: PostCardProps) {
   const cardClass = [
     'post-card',
     post.post_type === 'reply' ? 'is-reply' : '',
-    post.post_type === 'churru_reaction' ? 'is-churru' : '',
+    post.post_type === 'churru_reaction' ? 'is-karikari' : '',
   ].filter(Boolean).join(' ');
 
   return (
@@ -39,9 +39,9 @@ export default function PostCard({
         </div>
       )}
       {post.post_type === 'churru_reaction' && (
-        <div className="reply-indicator" style={{ color: 'var(--accent-churru)' }}>
-          <span>🐟</span>
-          <span>ちゅ〜るをもらった！</span>
+        <div className="reply-indicator" style={{ color: 'var(--accent-karikari)' }}>
+          <span>🍪</span>
+          <span>カリカリをもらった！</span>
         </div>
       )}
 
@@ -72,15 +72,15 @@ export default function PostCard({
           <span>{post.likes_count}</span>
         </button>
 
-        {/* ちゅ〜るボタン */}
+        {/* カリカリボタン */}
         <button
-          className="action-btn churru"
-          onClick={onChuuruClick}
-          title={userLoggedIn ? 'ちゅ〜るを投げる' : 'ログインが必要です'}
-          aria-label={`ちゅ〜る ${post.churru_count}`}
+          className="action-btn karikari"
+          onClick={onKarikariClick}
+          title={userLoggedIn ? 'カリカリをあげる' : 'ログインが必要です'}
+          aria-label={`カリカリ ${post.churru_count}`}
         >
-          <span>🐟</span>
-          <span>ちゅ〜る</span>
+          <span>🍪</span>
+          <span>カリカリ</span>
           {post.churru_count > 0 && <span style={{ opacity: 0.7 }}>×{post.churru_count}</span>}
         </button>
       </div>

@@ -9,11 +9,15 @@ export async function generateAIResponse(prompt: string, jsonMode: boolean = fal
   try {
     // 1. まずはGeminiを試す
     console.log(`[LLM] Trying Gemini (jsonMode: ${jsonMode})...`);
+    let result;
     if (jsonMode) {
-      return await generateGeminiJson(prompt);
+      result = await generateGeminiJson(prompt);
     } else {
-      return await generateGemini(prompt);
+      result = await generateGemini(prompt);
     }
+
+    if (result) return result;
+    throw new Error("Gemini returned empty/null response");
   } catch (err) {
     console.warn("[LLM] Gemini error, falling back to Groq:", err);
     

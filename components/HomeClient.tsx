@@ -5,15 +5,16 @@ import { supabaseClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import AuthModal from '@/components/AuthModal';
 import Timeline from '@/components/Timeline';
-import ChuuruModal from '@/components/ChuuruModal';
+import KarikariModal from '@/components/KarikariModal';
 
 import SharedHeader from '@/components/SharedHeader';
 
 export default function HomeClient() {
   const [user, setUser] = useState<User | null>(null);
   const [showAuth, setShowAuth] = useState(false);
-  const [chuuruTarget, setChuuruTarget] = useState<{ postId: string; catName: string } | null>(null);
+  const [karikariTarget, setKarikariTarget] = useState<{ postId: string; catName: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [confetti, setConfetti] = useState<boolean>(false);
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
@@ -26,6 +27,11 @@ export default function HomeClient() {
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2800);
+  };
+
+  const triggerConfetti = () => {
+    setConfetti(true);
+    setTimeout(() => setConfetti(false), 3000);
   };
 
   const handleSignOut = async () => {
@@ -55,9 +61,9 @@ export default function HomeClient() {
           <Timeline
             user={user}
             onNeedAuth={() => setShowAuth(true)}
-            onChuuruClick={(postId, catName) => {
+            onKarikariClick={(postId: string, catName: string) => {
               if (!user) { setShowAuth(true); return; }
-              setChuuruTarget({ postId, catName });
+              setKarikariTarget({ postId, catName });
             }}
             onToast={showToast}
           />
@@ -75,22 +81,41 @@ export default function HomeClient() {
         />
       )}
 
-      {/* ちゅ〜るモーダル */}
-      {chuuruTarget && (
-        <ChuuruModal
-          postId={chuuruTarget.postId}
-          catName={chuuruTarget.catName}
+      {/* カリカリモーダル */}
+      {karikariTarget && (
+        <KarikariModal
+          postId={karikariTarget.postId}
+          catName={karikariTarget.catName}
           user={user}
-          onClose={() => setChuuruTarget(null)}
+          onClose={() => setKarikariTarget(null)}
           onSuccess={() => {
-            setChuuruTarget(null);
-            showToast('ちゅ〜るを投げました！ 🐟 猫が喜んでいます…');
+            setKarikariTarget(null);
+            triggerConfetti();
+            showToast('カリカリをあげました！ 🍪 猫が喜んでいます…');
           }}
         />
       )}
 
       {/* トースト通知 */}
       {toast && <div className="toast">{toast}</div>}
+
+      {/* 演出用コンテナ */}
+      {confetti && (
+        <div className="confetti-container">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                backgroundColor: i % 2 === 0 ? '#ffa94d' : '#ff7eb3',
+                animationDuration: `${1 + Math.random() * 2}s`,
+                animationDelay: `${Math.random() * 0.5}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }

@@ -108,7 +108,7 @@ ${originalCatName}の投稿: 「${originalPostContent}」
 `.trim();
 }
 
-export function buildChuuruPrompt(cat: CatPromptConfig, originalPostContent: string): string {
+export function buildKarikariPrompt(cat: CatPromptConfig, originalPostContent: string): string {
   return `
 ${BASE_SYSTEM_PROMPT}
 
@@ -117,7 +117,7 @@ ${BASE_SYSTEM_PROMPT}
 性格: ${cat.personality}
 
 【状況】
-あなたがSNSに投稿した「${originalPostContent}」に対して、誰かがちゅ〜る（おやつ）をくれました！
+あなたがSNSに投稿した「${originalPostContent}」に対して、誰かがカリカリ（おやつ）をくれました！
 
 おやつをもらった猫として、今の気持ちや反応を短く投稿してください。嬉しいのは嬉しいけど、猫らしく素直じゃない反応でも良いです。
 `.trim();

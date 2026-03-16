@@ -125,7 +125,7 @@ export default function CatProfilePage({ params }: { params: { name: string } })
                         isLiked={false} 
                         catEmoji={avatar} 
                         onLike={() => {}} 
-                        onChuuruClick={() => {}} 
+                        onKarikariClick={() => {}} 
                         userLoggedIn={false} 
                       />
                     ))

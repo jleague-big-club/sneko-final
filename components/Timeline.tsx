@@ -32,7 +32,7 @@ export interface Post {
 interface TimelineProps {
   user: User | null;
   onNeedAuth: () => void;
-  onChuuruClick: (postId: string, catName: string) => void;
+  onKarikariClick: (postId: string, catName: string) => void;
   onToast: (msg: string) => void;
 }
 
@@ -46,7 +46,7 @@ const CAT_EMOJI: Record<string, string> = {
 
 export { CAT_EMOJI };
 
-export default function Timeline({ user, onNeedAuth, onChuuruClick, onToast }: TimelineProps) {
+export default function Timeline({ user, onNeedAuth, onKarikariClick, onToast }: TimelineProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
@@ -98,7 +98,7 @@ export default function Timeline({ user, onNeedAuth, onChuuruClick, onToast }: T
     setPosts(prev =>
       prev.map(p =>
         p.id === postId
-          ? { ...p, likes_count: p.likes_count + (liked ? 1 : -1) }
+          ? { ...p, likes_count: Math.max(0, p.likes_count + (liked ? 1 : -1)) }
           : p
       )
     );
@@ -132,7 +132,7 @@ export default function Timeline({ user, onNeedAuth, onChuuruClick, onToast }: T
           isLiked={likedIds.has(post.id)}
           catEmoji={CAT_EMOJI[post.cats?.name ?? ''] ?? '🐱'}
           onLike={() => handleLike(post.id)}
-          onChuuruClick={() => onChuuruClick(post.id, post.cats?.name ?? '猫')}
+          onKarikariClick={() => onKarikariClick(post.id, post.cats?.name ?? '猫')}
           userLoggedIn={!!user}
         />
       ))}

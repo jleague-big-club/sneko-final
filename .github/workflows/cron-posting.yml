@@ -11,5 +11,14 @@ jobs:
     steps:
       - name: Trigger AI Posting API
         run: |
-          curl -f -G "${{ secrets.VERCEL_APP_URL }}/api/cron/post" \
-          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -G "${{ secrets.VERCEL_APP_URL }}/api/cron/post" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          STATUS=$(echo "$RESPONSE" | tail -n 1 | cut -d: -f2)
+          echo "Response: $BODY"
+          echo "HTTP Status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "ERROR: Posting failed with status $STATUS"
+            exit 1
+          fi

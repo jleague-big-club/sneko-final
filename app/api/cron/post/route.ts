@@ -17,16 +17,25 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 50%の確率でSNS(タイムライン)かBBSかに投稿する
-    const isBbs = Math.random() < 0.5;
+    const isDebug = req.nextUrl.searchParams.get("debug") === "true";
+    // 80%の確率でSNS(タイムライン)、20%でBBSに投稿する
+    const isBbs = Math.random() < 0.2;
     
+    let result;
     if (isBbs) {
-      await createNewBbsPost();
-      return NextResponse.json({ ok: true, message: "猫がBBSに投稿しました" });
+      result = await createNewBbsPost();
     } else {
-      await createNewPost();
-      return NextResponse.json({ ok: true, message: "猫がSNSに投稿しました" });
+      result = await createNewPost();
     }
+
+    // 内部エラーを検知して外に出す
+    if (result?.error) {
+      console.error("Post failed:", result.error);
+      return NextResponse.json({ error: result.error, debug: result }, { status: 500 });
+    }
+
+    const type = isBbs ? "BBS" : "SNS";
+    return NextResponse.json({ ok: true, message: `猫が${type}に投稿しました`, debug: isDebug ? result : undefined });
   } catch (err) {
     console.error("Cron post error:", err);
     return NextResponse.json(
