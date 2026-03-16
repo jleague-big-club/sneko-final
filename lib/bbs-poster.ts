@@ -50,22 +50,80 @@ export async function createNewBbsPost(
   }
 
   const activeThreads = await getActiveThreads(10);
-  const prompt = buildBbsDecisionPrompt(cat, activeThreads);
+  
+  // スレッドがない場合は必ず新規作成
+  // スレッドがある場合は、70%の確率で返信、30%の確率で新規作成
+  const shouldReply = activeThreads.length > 0 && Math.random() < 0.7;
 
-  const decision = (await generateAIResponse(
-    prompt,
-    true,
-    preferredProvider
-  )) as BbsDecision | null;
+  if (shouldReply) {
+    // 既存スレへのレス
+    // ランダムにスレッドを選ぶ
+    const targetThread = activeThreads[Math.floor(Math.random() * activeThreads.length)];
+    
+    // 返信用プロンプトを構築（プロンプトは一時的にここでハードコードするか、cat-promptsの中身を再利用）
+    const replyPrompt = `
+${cat.personality}
+あなたは匿名掲示板を見ています。
+以下のスレッドに、あなたの性格に合わせて短くレス（返信）を書き込んでください。
 
-  if (!decision) {
-    const msg = `[${cat.name}] Failed to generate BBS decision.`;
-    console.error(msg);
-    return { error: msg };
-  }
+スレッドタイトル: 「${targetThread.title}」
+作成者: ${targetThread.catName}
 
-  if (decision.action === "new" && decision.title && decision.content) {
+【必ず守るルール】
+- レス内容だけを出力してください
+- 猫らしい短い文章（1〜3文）にしてください
+- JSONなどの形式ではなく、普通のテキストで出力してください
+`.trim();
+
+    const content = await generateAIResponse(replyPrompt, false, preferredProvider);
+
+    if (!content) {
+      return { error: `[${cat.name}] BBS Reply generation failed` };
+    }
+
+    const { error: replyError } = await supabaseAdmin.from("posts").insert({
+      cat_id: catId,
+      thread_id: targetThread.id,
+      content: content.replace(/^["']|["']$/g, "").trim(), // 万が一クオートが入っていたら消す
+      post_type: "reply",
+    });
+
+    if (replyError) {
+      console.error(`[${cat.name}] BBS Reply Insert Error:`, replyError);
+      return { error: replyError };
+    }
+    console.log(`[${cat.name}] BBSレス完了 (Thread: ${targetThread.id} - ${targetThread.title})`);
+    return { ok: true, action: "reply", cat: cat.name, threadId: targetThread.id };
+
+  } else {
     // 新スレ立て
+    // 既存のJSONプロンプトをそのまま使うか、シンプルにタイトルと本文を分割して生成させる
+    // ここでは確実にパースできるよう、シンプルな指示にする
+    const newThreadPrompt = `
+${cat.personality}
+あなたは匿名掲示板で新しい話題（スレッド）を立てようとしています。
+あなたの性格に合わせて、スレッドの「タイトル」と「最初の書き込み内容」を考えてください。
+
+【必ず守るルール】
+必ず以下のJSON形式でのみ出力してください。他の文字は含めないでください。
+{
+  "title": "スレッドのタイトル",
+  "content": "最初の書き込み内容（短く）"
+}
+`.trim();
+
+    const decision = (await generateAIResponse(
+      newThreadPrompt,
+      true,
+      preferredProvider
+    )) as { title?: string; content?: string } | null;
+
+    if (!decision || !decision.title || !decision.content) {
+      const msg = `[${cat.name}] Failed to generate BBS new thread.`;
+      console.error(msg, decision);
+      return { error: msg };
+    }
+
     const { data: newThread, error: threadError } = await supabaseAdmin
       .from("threads")
       .insert({
@@ -93,39 +151,5 @@ export async function createNewBbsPost(
     }
     console.log(`[${cat.name}] BBS新スレ作成: 「${decision.title}」`);
     return { ok: true, action: "new", cat: cat.name, title: decision.title };
-
-  } else if (decision.action === "reply" && decision.threadId && decision.content) {
-    // 既存スレへのレス
-    // スレッドが存在するか念のため確認（AIが勝手にIDを作るのを防ぐ）
-    const isValidThread = activeThreads.some((t) => t.id === decision.threadId);
-    
-    // もし不正なIDなら、アクティブなスレッドからランダムに選ぶ（フォールバック）
-    const targetThreadId = isValidThread 
-      ? decision.threadId 
-      : (activeThreads.length > 0 ? activeThreads[Math.floor(Math.random() * activeThreads.length)].id : null);
-
-    if (!targetThreadId) {
-        const msg = `[${cat.name}] BBS Target Thread not found, skipping.`;
-        console.error(msg);
-        return { error: msg };
-    }
-
-    const { error: replyError } = await supabaseAdmin.from("posts").insert({
-      cat_id: catId,
-      thread_id: targetThreadId,
-      content: decision.content,
-      post_type: "reply", // BBS内のレスも 'reply' 扱いとする
-    });
-
-    if (replyError) {
-      console.error(`[${cat.name}] BBS Reply Insert Error:`, replyError);
-      return { error: replyError };
-    }
-    console.log(`[${cat.name}] BBSレス完了 (Thread: ${targetThreadId})`);
-    return { ok: true, action: "reply", cat: cat.name, threadId: targetThreadId };
   }
-  
-  const msg = `[${cat.name}] Invalid BBS Decision format.`;
-  console.error(msg, decision);
-  return { error: msg, decision };
 }
