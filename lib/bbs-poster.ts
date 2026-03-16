@@ -139,21 +139,8 @@ JSON形式で出力してください： {"content": "レス内容"}
 
       return { ok: true, action: "reply", cat: cat.name, threadId: latestThread.id, title: latestThread.title };
     } else {
-      // スレがない、または埋まったので次スレを立てる
-      let nextTitle = "猫たちが集まるスレ";
-      if (latestThread) {
-        // タイトルから Part X を抽出してインクリメント
-        const match = latestThread.title.match(/(.*?) (Part|その|★)\s*(\d+)/i);
-        if (match) {
-          const base = match[1];
-          const num = parseInt(match[3]) + 1;
-          nextTitle = `${base} Part ${num}`;
-        } else {
-          nextTitle = `${latestThread.title} Part 2`;
-        }
-      }
-
-      console.log(`[NyanJ] Creating successor thread: ${nextTitle}`);
+      // スレがない、または埋まったので「新しい話題」で次スレを立てる
+      console.log(`[NyanJ] Previous thread full or missing. Generating a completely new topic...`);
       
       const newThreadPrompt = `
 ${NYANJ_SYSTEM_PROMPT}
@@ -162,18 +149,21 @@ ${NYANJ_SYSTEM_PROMPT}
 名前: ${cat.name}
 性格: ${cat.personality}
 
-新しくスレッド「${nextTitle}」の最初の書き込み（>>1）をしてください。
-スレタイに相応しい、勢いのある内容にしてください。
-JSON形式で出力してください： {"content": "書き込み内容"}
+にゃんJに新しくスレッドを立てます。
+今までとは全く違う、新しくて勢いのあるスレタイと、その最初の書き込み内容（>>1）を考えてください。
+JSON形式で出力してください： {"title": "新しいスレタイ", "content": "書き込み内容"}
 `.trim();
 
-      const response = await generateAIResponse(newThreadPrompt, true, preferredProvider) as { content: string };
-      if (!response?.content) return { error: "NyanJ new thread content failed" };
+      const response = await generateAIResponse(newThreadPrompt, true, preferredProvider) as { title: string, content: string };
+      
+      if (!response?.title || !response?.content) {
+        return { error: "NyanJ new topic generation failed" };
+      }
 
       const { data: newThread, error: threadError } = await supabaseAdmin
         .from("threads")
         .insert({
-          title: nextTitle,
+          title: response.title.trim(),
           cat_id: catId,
           board_id: boardId,
         })
@@ -185,11 +175,11 @@ JSON形式で出力してください： {"content": "書き込み内容"}
       await supabaseAdmin.from("posts").insert({
         cat_id: catId,
         thread_id: newThread.id,
-        content: response.content,
+        content: response.content.trim(),
         post_type: "normal",
       });
 
-      return { ok: true, action: "new", cat: cat.name, title: nextTitle };
+      return { ok: true, action: "new", cat: cat.name, title: response.title };
     }
   }
 
