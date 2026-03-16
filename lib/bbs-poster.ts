@@ -97,7 +97,7 @@ export async function createNewBbsPost(
 
     const latestThread = latestThreads?.[0];
     const postCount = latestThread?.posts?.[0]?.count ?? 0;
-    const LIMIT = 100; // にゃんJのスレ上限
+    const LIMIT = 50; // にゃんJのスレ上限
 
     if (latestThread && postCount < LIMIT) {
       // まだ埋まってないのでレスする
