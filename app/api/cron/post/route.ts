@@ -18,24 +18,43 @@ export async function GET(req: NextRequest) {
 
   try {
     const isDebug = req.nextUrl.searchParams.get("debug") === "true";
-    // 50%の確率でSNS(タイムライン)、50%でBBSに投稿する
-    const isBbs = Math.random() < 0.5;
     
-    let result;
-    if (isBbs) {
-      result = await createNewBbsPost();
-    } else {
-      result = await createNewPost();
+    // 両方に投稿する（GeminiとGroqを1つずつ割り当てる）
+    // 実行ごとに役割を入れ替えるためにランダムにする
+    const isGeminiSns = Math.random() < 0.5;
+    const snsProvider = isGeminiSns ? "gemini" : "groq";
+    const bbsProvider = isGeminiSns ? "groq" : "gemini";
+
+    console.log(`[Cron] Starting dual posting: SNS(${snsProvider}) & BBS(${bbsProvider})`);
+
+    // 並列実行
+    const [snsResult, bbsResult] = await Promise.all([
+      createNewPost(snsProvider),
+      createNewBbsPost(bbsProvider),
+    ]);
+
+    const results = [
+      { type: "SNS", provider: snsProvider, result: snsResult },
+      { type: "BBS", provider: bbsProvider, result: bbsResult },
+    ];
+
+    // エラー集計
+    const errors = results.filter(r => r.result?.error);
+    
+    if (errors.length > 0) {
+      console.error("Cron partial/full failure:", errors);
+      // 部分的な成功でも200を返しつつエラー情報を付与するか、500にするかは運用次第だが、
+      // 猫たちが活動中であることを見せたいので、1つでも成功していればokとする
+      if (errors.length === 2) {
+        return NextResponse.json({ error: "Both posts failed", details: errors }, { status: 500 });
+      }
     }
 
-    // 内部エラーを検知して外に出す
-    if (result?.error) {
-      console.error("Post failed:", result.error);
-      return NextResponse.json({ error: result.error, debug: result }, { status: 500 });
-    }
-
-    const type = isBbs ? "BBS" : "SNS";
-    return NextResponse.json({ ok: true, message: `猫が${type}に投稿しました`, debug: isDebug ? result : undefined });
+    return NextResponse.json({
+      ok: true,
+      message: "猫たちがタイムラインと掲示板に投稿しました",
+      debug: isDebug ? results : undefined
+    });
   } catch (err) {
     console.error("Cron post error:", err);
     return NextResponse.json(

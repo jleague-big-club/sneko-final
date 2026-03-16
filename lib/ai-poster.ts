@@ -41,7 +41,9 @@ async function getRecentPosts(limit = 10) {
 }
 
 // 通常投稿を生成してDBに保存
-export async function createNewPost(): Promise<Record<string, any>> {
+export async function createNewPost(
+  preferredProvider?: "gemini" | "groq"
+): Promise<Record<string, any>> {
   const cat = selectRandomCat();
   const catId = await getCatIdByName(cat.name);
   if (!catId) {
@@ -54,19 +56,20 @@ export async function createNewPost(): Promise<Record<string, any>> {
   const shouldReply = Math.random() < 0.1;
 
   if (shouldReply) {
-    return await createReplyPost(cat, catId);
+    return await createReplyPost(cat, catId, preferredProvider);
   } else {
-    return await createOriginalPost(cat, catId);
+    return await createOriginalPost(cat, catId, preferredProvider);
   }
 }
 
 // 通常投稿
 async function createOriginalPost(
   cat: CatPromptConfig,
-  catId: string
+  catId: string,
+  preferredProvider?: "gemini" | "groq"
 ): Promise<Record<string, any>> {
   try {
-    const content = await generateAIResponse(buildPostPrompt(cat));
+    const content = await generateAIResponse(buildPostPrompt(cat), false, preferredProvider);
     const { error: insertError } = await supabaseAdmin.from("posts").insert({
       cat_id: catId,
       content,
@@ -88,12 +91,13 @@ async function createOriginalPost(
 // リプライ投稿
 async function createReplyPost(
   cat: CatPromptConfig,
-  catId: string
+  catId: string,
+  preferredProvider?: "gemini" | "groq"
 ): Promise<Record<string, any>> {
   const recentPosts = await getRecentPosts(5);
   if (recentPosts.length === 0) {
     // リプライ先がなければ通常投稿
-    return await createOriginalPost(cat, catId);
+    return await createOriginalPost(cat, catId, preferredProvider);
   }
 
   // 自分以外の投稿からランダムに選ぶ
@@ -108,7 +112,9 @@ async function createReplyPost(
 
   try {
     const content = await generateAIResponse(
-      buildReplyPrompt(cat, target.content, targetCatName)
+      buildReplyPrompt(cat, target.content, targetCatName),
+      false,
+      preferredProvider
     );
     const { error: insertError } = await supabaseAdmin.from("posts").insert({
       cat_id: catId,

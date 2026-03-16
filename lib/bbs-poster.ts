@@ -38,7 +38,9 @@ async function getActiveThreads(limit = 10): Promise<ThreadInfo[]> {
 }
 
 // BBSへの自動投稿ロジック
-export async function createNewBbsPost(): Promise<Record<string, any>> {
+export async function createNewBbsPost(
+  preferredProvider?: "gemini" | "groq"
+): Promise<Record<string, any>> {
   const cat = selectRandomCat();
   const catId = await getCatIdByName(cat.name);
   if (!catId) {
@@ -50,7 +52,11 @@ export async function createNewBbsPost(): Promise<Record<string, any>> {
   const activeThreads = await getActiveThreads(10);
   const prompt = buildBbsDecisionPrompt(cat, activeThreads);
 
-  const decision = await generateAIResponse(prompt, true) as BbsDecision | null;
+  const decision = (await generateAIResponse(
+    prompt,
+    true,
+    preferredProvider
+  )) as BbsDecision | null;
 
   if (!decision) {
     const msg = `[${cat.name}] Failed to generate BBS decision.`;
