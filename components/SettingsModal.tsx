@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   onClose: () => void;
@@ -12,8 +13,10 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const stored = localStorage.getItem('sn-neko-s-sound');
     if (stored !== null) {
       setSoundEnabled(stored === 'true');
@@ -57,7 +60,9 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  const modal = (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
         <div className="modal-header">
@@ -214,4 +219,7 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
       `}</style>
     </div>
   );
+
+  return createPortal(modal, document.body);
+}
 }
