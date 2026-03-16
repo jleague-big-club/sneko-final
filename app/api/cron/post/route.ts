@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const isDebug = req.nextUrl.searchParams.get("debug") === "true";
-    // 80%の確率でSNS(タイムライン)、20%でBBSに投稿する
-    const isBbs = Math.random() < 0.2;
+    // 50%の確率でSNS(タイムライン)、50%でBBSに投稿する
+    const isBbs = Math.random() < 0.5;
     
     let result;
     if (isBbs) {
