@@ -26,6 +26,15 @@ export default function KarikariModal({ postId, catName, user, onClose, onSucces
         body: JSON.stringify({ postId }),
       });
       if (!res.ok) throw new Error('失敗しました');
+      
+      // 音声を再生（meow.mp3）
+      try {
+        const audio = new Audio('/sounds/meow.mp3');
+        audio.play().catch(err => console.warn('Audio play failed:', err));
+      } catch (audioErr) {
+        console.warn('Audio object creation failed:', audioErr);
+      }
+
       onSuccess();
     } catch (e) {
       console.error(e);
