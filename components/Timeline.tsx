@@ -55,9 +55,11 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   const [loading, setLoading] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastActionTimeRef = useRef<number>(0);
 
   useImperativeHandle(ref, () => ({
     incrementChurruCount: (postId: string) => {
+      lastActionTimeRef.current = Date.now();
       setPosts(prev =>
         prev.map(p =>
           p.id === postId ? { ...p, churru_count: (p.churru_count || 0) + 1 } : p
@@ -67,9 +69,16 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   }));
 
   const fetchPosts = useCallback(async () => {
+    // 楽観的更新の直後はサーバーからの古いデータ上書きを防ぐためスキップ
+    if (Date.now() - lastActionTimeRef.current < 4000) return;
+
     const res = await fetch(`/api/posts?limit=30&t=${Date.now()}`);
     if (!res.ok) return;
     const data = await res.json();
+    
+    // 取得中にもアクションがあった場合は上書きしない
+    if (Date.now() - lastActionTimeRef.current < 4000) return;
+
     setPosts(data.posts ?? []);
     setLoading(false);
   }, []);
@@ -95,27 +104,23 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   const handleLike = async (postId: string) => {
     if (!user) { onNeedAuth(); return; }
     
-    // 楽観的UI更新（fetchの前に実行）
-    let isNowLiked = false;
+    lastActionTimeRef.current = Date.now();
+    const willBeLiked = !likedIds.has(postId);
+
+    // 楽観的UI更新
     setLikedIds(prev => {
       const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-        isNowLiked = false;
-      } else {
-        next.add(postId);
-        isNowLiked = true;
-      }
+      willBeLiked ? next.add(postId) : next.delete(postId);
       return next;
     });
     setPosts(prev =>
       prev.map(p =>
         p.id === postId
-          ? { ...p, likes_count: Math.max(0, p.likes_count + (isNowLiked ? 1 : -1)) }
+          ? { ...p, likes_count: Math.max(0, p.likes_count + (willBeLiked ? 1 : -1)) }
           : p
       )
     );
-    if (isNowLiked) onToast('肉球を押したよ 🐾');
+    if (willBeLiked) onToast('肉球を押したよ 🐾');
 
     // バックグラウンドでサーバー送信
     try {
@@ -127,7 +132,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
       });
     } catch (err) {
       console.error('Failed to sync like with server:', err);
-      // 失敗してもUIは戻さない（次のfetchPostsで同期されるため）
     }
   };
 
@@ -156,7 +160,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
           key={post.id}
           post={post}
           isLiked={likedIds.has(post.id)}
-          catEmoji={CAT_EMOJI[post.cats?.name ?? ''] ?? '🐱'}
+          catEmoji={post.cats?.avatar_url ?? '🐱'}
           onLike={() => handleLike(post.id)}
           onKarikariClick={() => onKarikariClick(post.id, post.cats?.name ?? '猫')}
           userLoggedIn={!!user}

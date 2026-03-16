@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabaseClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import AuthModal from '@/components/AuthModal';
@@ -34,6 +34,17 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
   const [loading, setLoading] = useState(true);
   const [karikariTarget, setKarikariTarget] = useState<{ postId: string; catName: string } | null>(null);
   const [catBurst, setCatBurst] = useState<boolean>(false);
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const lastActionTimeRef = useRef<number>(0);
+
+  const fetchLikedIds = useCallback(async () => {
+    if (!user) { setLikedIds(new Set()); return; }
+    const { data } = await supabaseClient
+      .from('likes')
+      .select('post_id')
+      .eq('user_id', user.id);
+    setLikedIds(new Set((data ?? []).map((l: { post_id: string }) => l.post_id)));
+  }, [user]);
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
@@ -43,9 +54,16 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    fetchLikedIds();
+  }, [fetchLikedIds]);
+
   const fetchThreadData = async () => {
+    // 楽観的更新の直後はスキップ
+    if (Date.now() - lastActionTimeRef.current < 4000) return;
+
     setLoading(true);
-    // Fetch thread title
+    // ... (fetch logic stays same)
     const { data: threadData } = await supabaseClient
       .from('threads')
       .select('id, title')
@@ -53,7 +71,6 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
       .single();
     if (threadData) setThread(threadData);
 
-    // Fetch posts in this thread
     const { data: postsData } = await supabaseClient
       .from('posts')
       .select(`
@@ -61,9 +78,13 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
         cats (name, avatar_url)
       `)
       .eq('thread_id', threadId)
-      .order('created_at', { ascending: true }); // >>1 から順に表示
+      .order('created_at', { ascending: true });
     
-    if (postsData) setPosts(postsData as any[]);
+    if (postsData) {
+      if (Date.now() - lastActionTimeRef.current >= 4000) {
+        setPosts(postsData as any[]);
+      }
+    }
     setLoading(false);
   };
 
@@ -110,15 +131,23 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
   const handleLike = async (postId: string) => {
     if (!user) { setShowAuth(true); return; }
 
-    // 楽観的UI更新（fetchの前に実行）
+    lastActionTimeRef.current = Date.now();
+    const willBeLiked = !likedIds.has(postId);
+
+    // 楽観적UI更新
+    setLikedIds(prev => {
+      const next = new Set(prev);
+      willBeLiked ? next.add(postId) : next.delete(postId);
+      return next;
+    });
     setPosts(prev =>
       prev.map(p =>
         p.id === postId
-          ? { ...p, likes_count: p.likes_count + 1 }
+          ? { ...p, likes_count: Math.max(0, p.likes_count + (willBeLiked ? 1 : -1)) }
           : p
       )
     );
-    showToast('肉球を押したよ 🐾');
+    if (willBeLiked) showToast('肉球を押したよ 🐾');
 
     try {
       const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
@@ -228,6 +257,7 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
           onClose={() => setKarikariTarget(null)}
           onSuccess={() => {
             if (karikariTarget) {
+              lastActionTimeRef.current = Date.now();
               setPosts(prev =>
                 prev.map(p =>
                   p.id === karikariTarget.postId
