@@ -27,10 +27,13 @@ export default function KarikariModal({ postId, catName, user, onClose, onSucces
       });
       if (!res.ok) throw new Error('失敗しました');
       
-      // 音声を再生（meow.mp3）
+      // 音声を再生（設定がOFFならスキップ）
       try {
-        const audio = new Audio('/sounds/meow.mp3');
-        audio.play().catch(err => console.warn('Audio play failed:', err));
+        const isSoundEnabled = localStorage.getItem('sn-neko-s-sound') !== 'false';
+        if (isSoundEnabled) {
+          const audio = new Audio('/sounds/meow.mp3');
+          audio.play().catch(err => console.warn('Audio play failed:', err));
+        }
       } catch (audioErr) {
         console.warn('Audio object creation failed:', audioErr);
       }

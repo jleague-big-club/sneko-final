@@ -178,7 +178,10 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
           backdrop-filter: blur(4px);
           display: flex;
           justify-content: center;
-          align-items: center;
+          align-items: flex-start;
+          padding-top: 80px;
+          padding-bottom: 40px;
+          overflow-y: auto;
         }
         .modal-content {
           background: #1a1a1a;
