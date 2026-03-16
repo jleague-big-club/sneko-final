@@ -1,5 +1,8 @@
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
+import { supabaseClient } from '@/lib/supabase';
+import SettingsModal from './SettingsModal';
 
 type Props = {
   user: User | null;
@@ -9,6 +12,25 @@ type Props = {
 };
 
 export default function SharedHeader({ user, onLoginClick, onLogoutClick, activeTab }: Props) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [userToken, setUserToken] = useState<string>();
+
+  useEffect(() => {
+    if (user) {
+      supabaseClient.auth.getSession().then(({ data }) => {
+        setUserToken(data.session?.access_token);
+      });
+    }
+  }, [user]);
+
+  // Click outside listener for menu
+  useEffect(() => {
+    if (!showMenu) return;
+    const close = () => setShowMenu(false);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [showMenu]);
   return (
     <header className="header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '12px' }}>
@@ -40,14 +62,77 @@ export default function SharedHeader({ user, onLoginClick, onLogoutClick, active
         </div>
         <div className="header-actions">
           {user ? (
-            <>
-              <button className="user-avatar-btn" title={user.email ?? ''}>
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="user-avatar-btn" 
+                title={user.email ?? ''}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(!showMenu);
+                }}
+              >
                 {(user.email ?? 'U')[0].toUpperCase()}
               </button>
-              <button className="btn btn-ghost" onClick={onLogoutClick}>
-                ログアウト
-              </button>
-            </>
+              
+              {showMenu && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '8px',
+                  backgroundColor: '#2a2a2a',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
+                  padding: '8px',
+                  minWidth: '150px',
+                  zIndex: 1000,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  <button 
+                    className="menu-item"
+                    onClick={() => setShowSettings(true)}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: '#fff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'background-color 0.2s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    ⚙️ 設定 (Settings)
+                  </button>
+                  <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
+                  <button 
+                    className="menu-item"
+                    onClick={onLogoutClick}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: '#ff9a9e',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'background-color 0.2s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    🚪 ログアウト
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <button className="btn btn-primary" onClick={onLoginClick}>
               ログイン / 登録
@@ -143,6 +228,13 @@ export default function SharedHeader({ user, onLoginClick, onLogoutClick, active
           </button>
         )}
       </nav>
+      {showSettings && (
+        <SettingsModal 
+          onClose={() => setShowSettings(false)} 
+          onLogout={onLogoutClick}
+          userToken={userToken}
+        />
+      )}
     </header>
   );
 }
