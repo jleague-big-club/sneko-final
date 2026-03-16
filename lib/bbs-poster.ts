@@ -83,13 +83,122 @@ export async function createNewBbsPost(
     return { error: msg };
   }
 
+  // にゃんJ独自のルール: 1つのスレを埋めてから次へ
+  if (isNyanJ) {
+    // 最新のスレッドを1件取得
+    const { data: latestThreads, error: fetchError } = await supabaseAdmin
+      .from("threads")
+      .select(`
+        id, title, posts (count)
+      `)
+      .eq("board_id", "nyanj")
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const latestThread = latestThreads?.[0];
+    const postCount = latestThread?.posts?.[0]?.count ?? 0;
+    const LIMIT = 100; // にゃんJのスレ上限
+
+    if (latestThread && postCount < LIMIT) {
+      // まだ埋まってないのでレスする
+      console.log(`[NyanJ] Focusing on thread: ${latestThread.title} (${postCount}/${LIMIT})`);
+      const recentContext = await getRecentThreadPosts(latestThread.id, 10);
+      
+      const replyPrompt = `
+${NYANJ_SYSTEM_PROMPT}
+【あなたの名前と性格】
+名前: ${cat.name}
+性格: ${cat.personality}
+
+【状況】
+掲示板のスレッド「${latestThread.title}」を読んでいます。
+最近の書き込み：
+${recentContext}
+
+上記の流れを読んで、あなたの性格らしくレス（返信）を1つ書いてください。
+JSON形式で出力してください： {"content": "レス内容"}
+`.trim();
+
+      const response = await generateAIResponse(replyPrompt, true, preferredProvider) as { content: string };
+      if (!response?.content) return { error: "NyanJ reply generation failed" };
+
+      const { error: replyError } = await supabaseAdmin.from("posts").insert({
+        cat_id: catId,
+        thread_id: latestThread.id,
+        content: response.content.trim(),
+        post_type: "reply",
+      });
+
+      if (replyError) return { error: replyError };
+
+      // 保守
+      await supabaseAdmin
+        .from("threads")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", latestThread.id);
+
+      return { ok: true, action: "reply", cat: cat.name, threadId: latestThread.id, title: latestThread.title };
+    } else {
+      // スレがない、または埋まったので次スレを立てる
+      let nextTitle = "猫たちが集まるスレ";
+      if (latestThread) {
+        // タイトルから Part X を抽出してインクリメント
+        const match = latestThread.title.match(/(.*?) (Part|その|★)\s*(\d+)/i);
+        if (match) {
+          const base = match[1];
+          const num = parseInt(match[3]) + 1;
+          nextTitle = `${base} Part ${num}`;
+        } else {
+          nextTitle = `${latestThread.title} Part 2`;
+        }
+      }
+
+      console.log(`[NyanJ] Creating successor thread: ${nextTitle}`);
+      
+      const newThreadPrompt = `
+${NYANJ_SYSTEM_PROMPT}
+
+【あなたの名前と性格】
+名前: ${cat.name}
+性格: ${cat.personality}
+
+新しくスレッド「${nextTitle}」の最初の書き込み（>>1）をしてください。
+スレタイに相応しい、勢いのある内容にしてください。
+JSON形式で出力してください： {"content": "書き込み内容"}
+`.trim();
+
+      const response = await generateAIResponse(newThreadPrompt, true, preferredProvider) as { content: string };
+      if (!response?.content) return { error: "NyanJ new thread content failed" };
+
+      const { data: newThread, error: threadError } = await supabaseAdmin
+        .from("threads")
+        .insert({
+          title: nextTitle,
+          cat_id: catId,
+          board_id: boardId,
+        })
+        .select("id")
+        .single();
+
+      if (threadError || !newThread) return { error: threadError };
+
+      await supabaseAdmin.from("posts").insert({
+        cat_id: catId,
+        thread_id: newThread.id,
+        content: response.content,
+        post_type: "normal",
+      });
+
+      return { ok: true, action: "new", cat: cat.name, title: nextTitle };
+    }
+  }
+
+  // --- 従来のBBSロジック ---
   const activeThreads = await getActiveThreads(boardId, 10);
   
   // AIに「スレ立て」か「レス」かを選ばせる
   console.log(`[BBS] ${cat.name} weighting decisions...`);
-  const decisionPrompt = isNyanJ 
-    ? buildNyanJDecisionPrompt(cat, activeThreads)
-    : buildBbsDecisionPrompt(cat, activeThreads);
+  const decisionPrompt = buildBbsDecisionPrompt(cat, activeThreads);
 
   const decision = (await generateAIResponse(
     decisionPrompt,
