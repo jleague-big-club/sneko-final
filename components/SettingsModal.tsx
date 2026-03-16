@@ -58,7 +58,7 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
         <div className="modal-header">
           <h2 className="modal-title">設定 (Neko Settings)</h2>
