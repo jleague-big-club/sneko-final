@@ -53,9 +53,78 @@ export interface TimelineRef {
 const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onKarikariClick, onToast }, ref) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActionTimeRef = useRef<number>(0);
+
+  // 初回読み込みと定期的更新
+  const fetchLatestPosts = useCallback(async () => {
+    // 楽観的更新の直後はサーバーからの古いデータ上書きを防ぐためスキップ
+    if (Date.now() - lastActionTimeRef.current < 4000) return;
+
+    // 定期的更新は常に最新の30件のみ
+    const res = await fetch(`/api/posts?limit=30&t=${Date.now()}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    // 取得中にもアクションがあった場合は上書きしない
+    if (Date.now() - lastActionTimeRef.current < 4000) return;
+
+    const newPosts = data.posts ?? [];
+    
+    // 既存のリストと結合（最新分で上書きしつつ、それ以降の過去分は維持）
+    setPosts(prev => {
+      // 一旦IDでMap化して重複排除
+      const map = new Map();
+      newPosts.forEach((p: Post) => map.set(p.id, p));
+      prev.forEach((p: Post) => {
+        if (!map.has(p.id)) map.set(p.id, p);
+      });
+      return Array.from(map.values()).sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    });
+    
+    setLoading(false);
+  }, []);
+
+  // 追加読み込み
+  const loadMore = async () => {
+    if (loadingMore || !hasMore || posts.length === 0) return;
+    
+    setLoadingMore(true);
+    const lastPost = posts[posts.length - 1];
+    const cursor = lastPost.created_at;
+
+    try {
+      const res = await fetch(`/api/posts?limit=20&cursor=${encodeURIComponent(cursor)}&t=${Date.now()}`);
+      if (!res.ok) throw new Error('Load more failed');
+      const data = await res.json();
+      
+      const additionalPosts = data.posts ?? [];
+      if (additionalPosts.length < 20) {
+        setHasMore(false);
+      }
+
+      if (additionalPosts.length > 0) {
+        setPosts(prev => {
+          const map = new Map();
+          prev.forEach((p: Post) => map.set(p.id, p));
+          additionalPosts.forEach((p: Post) => map.set(p.id, p));
+          return Array.from(map.values()).sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      onToast('読み込みに失敗しました');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useImperativeHandle(ref, () => ({
     incrementChurruCount: (postId: string) => {
@@ -68,21 +137,6 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
     }
   }));
 
-  const fetchPosts = useCallback(async () => {
-    // 楽観的更新の直後はサーバーからの古いデータ上書きを防ぐためスキップ
-    if (Date.now() - lastActionTimeRef.current < 4000) return;
-
-    const res = await fetch(`/api/posts?limit=30&t=${Date.now()}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    
-    // 取得中にもアクションがあった場合は上書きしない
-    if (Date.now() - lastActionTimeRef.current < 4000) return;
-
-    setPosts(data.posts ?? []);
-    setLoading(false);
-  }, []);
-
   // ユーザーのいいね済みIDを取得
   const fetchLikedIds = useCallback(async () => {
     if (!user) { setLikedIds(new Set()); return; }
@@ -94,12 +148,12 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   }, [user]);
 
   useEffect(() => {
-    fetchPosts();
+    fetchLatestPosts();
     fetchLikedIds();
     // 30秒ごとに自動リフレッシュ
-    intervalRef.current = setInterval(fetchPosts, 30000);
+    intervalRef.current = setInterval(fetchLatestPosts, 30000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [fetchPosts, fetchLikedIds]);
+  }, [fetchLatestPosts, fetchLikedIds]);
 
   const handleLike = async (postId: string) => {
     if (!user) { onNeedAuth(); return; }
@@ -184,6 +238,32 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
           userLoggedIn={!!user}
         />
       ))}
+
+      {hasMore && (
+        <div style={{ padding: '20px 0', textAlign: 'center' }}>
+          <button 
+            onClick={loadMore}
+            disabled={loadingMore}
+            style={{
+              padding: '12px 24px',
+              borderRadius: '24px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              color: 'rgba(255,255,255,0.7)',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              transition: 'all 0.2s',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+          >
+            {loadingMore ? '読み込み中...' : 'もっと見る 🐾'}
+          </button>
+        </div>
+      )}
     </div>
   );
 });

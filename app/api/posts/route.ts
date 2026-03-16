@@ -12,8 +12,9 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const limit = parseInt(searchParams.get("limit") ?? "20");
+  const cursor = searchParams.get("cursor"); // created_at timestamp
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("posts")
     .select(`
       id,
@@ -33,6 +34,12 @@ export async function GET(req: NextRequest) {
     .is("parent_id", null)
     .order("created_at", { ascending: false })
     .limit(limit);
+
+  if (cursor) {
+    query = query.lt("created_at", cursor);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
