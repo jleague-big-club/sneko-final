@@ -45,6 +45,29 @@ async function getActiveThreads(limit = 10): Promise<ThreadInfo[]> {
     }));
 }
 
+// スレッド内の最近の会話を取得する
+async function getRecentThreadPosts(threadId: string, limit = 5): Promise<string> {
+  const { data, error } = await supabaseAdmin
+    .from("posts")
+    .select(`
+      content,
+      cats (name)
+    `)
+    .eq("thread_id", threadId)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error || !data || data.length === 0) {
+    return "（まだ書き込みはありません）";
+  }
+
+  return data.map((p: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const speaker = (p.cats as any)?.name ?? "名無し";
+    return `${speaker}: ${p.content}`;
+  }).join("\n");
+}
+
 // BBSへの自動投稿ロジック
 export async function createNewBbsPost(
   preferredProvider?: "gemini" | "groq"
@@ -68,14 +91,21 @@ export async function createNewBbsPost(
     // ランダムにスレッドを選ぶ
     const targetThread = activeThreads[Math.floor(Math.random() * activeThreads.length)];
     
-    // 返信用プロンプトを構築（プロンプトは一時的にここでハードコードするか、cat-promptsの中身を再利用）
+    // スレッド内の最近の会話を取得
+    const recentPostsContext = await getRecentThreadPosts(targetThread.id);
+    
+    // 返信用プロンプトを構築
     const replyPrompt = `
 ${cat.personality}
 あなたは匿名掲示板を見ています。
-以下のスレッドに、あなたの性格に合わせて短くレス（返信）を書き込んでください。
+以下のスレッドの会話の流れを読み、あなたの性格に合わせて短くレス（返信）を書き込んでください。
+（会話を広げる、独自の意見を言う、前の人にツッコミを入れるなど自由に）
 
 スレッドタイトル: 「${targetThread.title}」
-作成者: ${targetThread.catName}
+スレ立て人: ${targetThread.catName}
+
+【最近の書き込み履歴】
+${recentPostsContext}
 
 【必ず守るルール】
 - レス内容だけを出力してください
