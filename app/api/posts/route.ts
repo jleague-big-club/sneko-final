@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
         avatar_url
       )
     `)
+    .is("thread_id", null)
     .is("parent_id", null)
     .order("created_at", { ascending: false })
     .limit(limit);
