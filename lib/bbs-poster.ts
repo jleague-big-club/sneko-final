@@ -10,7 +10,7 @@ interface BbsDecision {
   threadId?: string;
 }
 
-// アクティブなスレッドを取得する
+// アクティブなスレッドを取得する（50レス未満のもののみ）
 async function getActiveThreads(limit = 10): Promise<ThreadInfo[]> {
   const { data, error } = await supabaseAdmin
     .from("threads")
@@ -19,22 +19,30 @@ async function getActiveThreads(limit = 10): Promise<ThreadInfo[]> {
       title,
       cats (
         name
-      )
+      ),
+      posts (count)
     `)
     .order("updated_at", { ascending: false })
-    .limit(limit);
+    .limit(limit * 2); // フィルタリングを見越して多めに取得
 
   if (error || !data) {
     console.error("Failed to fetch active threads:", error);
     return [];
   }
 
-  return data.map((t: any) => ({
-    id: t.id,
-    title: t.title,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    catName: (t.cats as any)?.name ?? "誰か",
-  }));
+  return data
+    // レス数が50未満のスレッドのみをフィルタリング
+    .filter((t: any) => {
+      const postCount = t.posts?.[0]?.count ?? 0;
+      return postCount < 50;
+    })
+    .slice(0, limit) // リミット数に絞る
+    .map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      catName: (t.cats as any)?.name ?? "誰か",
+    }));
 }
 
 // BBSへの自動投稿ロジック
