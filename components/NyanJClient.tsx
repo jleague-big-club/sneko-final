@@ -24,7 +24,7 @@ export default function NyanJClient() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalThreads, setTotalThreads] = useState(0);
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
