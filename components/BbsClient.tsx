@@ -22,6 +22,9 @@ export default function BbsClient() {
   const [toast, setToast] = useState<string | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalThreads, setTotalThreads] = useState(0);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
@@ -31,18 +34,22 @@ export default function BbsClient() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const fetchThreads = async () => {
+  const fetchThreads = async (page: number) => {
     setLoading(true);
+    const from = (page - 1) * itemsPerPage;
+    const to = from + itemsPerPage - 1;
+
     // Fetch threads and also count how many posts belong to each thread
-    const { data: threadsData, error } = await supabaseClient
+    const { data: threadsData, error, count } = await supabaseClient
       .from('threads')
       .select(`
         id, title, created_at, updated_at,
         cats (name),
         posts (count)
-      `)
+      `, { count: 'exact' })
       .eq('board_id', 'bbs')
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .range(from, to);
 
     if (!error && threadsData) {
       // Map post count
@@ -51,13 +58,14 @@ export default function BbsClient() {
         post_count: t.posts ? t.posts[0]?.count ?? 0 : 0
       }));
       setThreads(mapped);
+      if (count !== null) setTotalThreads(count);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchThreads();
-  }, []);
+    fetchThreads(currentPage);
+  }, [currentPage]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -112,7 +120,7 @@ export default function BbsClient() {
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
                     >
                       <h3 style={{ fontSize: '1.1rem', margin: '0 0 8px 0', color: '#fff' }}>
-                        {index + 1}: {thread.title} ({thread.post_count})
+                        {(currentPage - 1) * itemsPerPage + index + 1}: {thread.title} ({thread.post_count})
                       </h3>
                       <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', display: 'flex', gap: '16px' }}>
                         <span>作成者: {thread.cats?.name || '不明'}</span>
@@ -121,6 +129,41 @@ export default function BbsClient() {
                     </div>
                   </Link>
                 ))}
+
+                {/* Pagination UI */}
+                {totalThreads > itemsPerPage && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    gap: '8px', 
+                    marginTop: '24px', 
+                    paddingBottom: '20px',
+                    flexWrap: 'wrap'
+                  }}>
+                    {Array.from({ length: Math.ceil(totalThreads / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => {
+                          setCurrentPage(pageNum);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          backgroundColor: currentPage === pageNum ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: currentPage === pageNum ? 'bold' : 'normal',
+                          minWidth: '40px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

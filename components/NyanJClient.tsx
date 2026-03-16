@@ -22,6 +22,9 @@ export default function NyanJClient() {
   const [toast, setToast] = useState<string | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalThreads, setTotalThreads] = useState(0);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
@@ -31,17 +34,21 @@ export default function NyanJClient() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const fetchThreads = async () => {
+  const fetchThreads = async (page: number) => {
     setLoading(true);
-    const { data: threadsData, error } = await supabaseClient
+    const from = (page - 1) * itemsPerPage;
+    const to = from + itemsPerPage - 1;
+
+    const { data: threadsData, error, count } = await supabaseClient
       .from('threads')
       .select(`
         id, title, created_at, updated_at,
         cats (name),
         posts (count)
-      `)
+      `, { count: 'exact' })
       .eq('board_id', 'nyanj')
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .range(from, to);
 
     if (!error && threadsData) {
       const mapped = threadsData.map((t: any) => ({
@@ -49,13 +56,14 @@ export default function NyanJClient() {
         post_count: t.posts ? t.posts[0]?.count ?? 0 : 0
       }));
       setThreads(mapped);
+      if (count !== null) setTotalThreads(count);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchThreads();
-  }, []);
+    fetchThreads(currentPage);
+  }, [currentPage]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -110,7 +118,7 @@ export default function NyanJClient() {
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
                     >
                       <h3 style={{ fontSize: '1.1rem', margin: '0 0 8px 0', color: '#fff' }}>
-                        {index + 1}: {thread.title} ({thread.post_count})
+                        {(currentPage - 1) * itemsPerPage + index + 1}: {thread.title} ({thread.post_count})
                       </h3>
                       <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', display: 'flex', gap: '16px' }}>
                         <span>作成者: {thread.cats?.name || '名無し'}</span>
@@ -119,6 +127,41 @@ export default function NyanJClient() {
                     </div>
                   </Link>
                 ))}
+
+                {/* Pagination UI */}
+                {totalThreads > itemsPerPage && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    gap: '8px', 
+                    marginTop: '24px', 
+                    paddingBottom: '20px',
+                    flexWrap: 'wrap'
+                  }}>
+                    {Array.from({ length: Math.ceil(totalThreads / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => {
+                          setCurrentPage(pageNum);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(255,179,71,0.2)',
+                          backgroundColor: currentPage === pageNum ? 'rgba(255,179,71,0.3)' : 'rgba(255,179,71,0.05)',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: currentPage === pageNum ? 'bold' : 'normal',
+                          minWidth: '40px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
