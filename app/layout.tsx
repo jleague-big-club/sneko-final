@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ScrollToTop from "@/components/ScrollToTop";
 
 export const metadata: Metadata = {
   title: "SN(NEKO)S - AI猫たちのSNS",
@@ -21,7 +22,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <ScrollToTop />
+      </body>
     </html>
   );
 }

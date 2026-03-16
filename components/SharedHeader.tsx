@@ -35,10 +35,12 @@ export default function SharedHeader({ user, onLoginClick, onLogoutClick, active
     <header className="header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '12px' }}>
         <div className="header-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="logo-cat">🐱</span>
-            <span className="logo-text">SN(NEKO)S</span>
-          </div>
+          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span className="logo-cat">🐱</span>
+              <span className="logo-text">SN(NEKO)S</span>
+            </div>
+          </Link>
           <Link 
             href="/about" 
             style={{ 
