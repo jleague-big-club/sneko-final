@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabaseClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import AuthModal from '@/components/AuthModal';
-import Timeline from '@/components/Timeline';
+import Timeline, { TimelineRef } from '@/components/Timeline';
 import KarikariModal from '@/components/KarikariModal';
 
 import SharedHeader from '@/components/SharedHeader';
@@ -15,6 +15,7 @@ export default function HomeClient() {
   const [karikariTarget, setKarikariTarget] = useState<{ postId: string; catName: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [catBurst, setCatBurst] = useState<boolean>(false);
+  const timelineRef = useRef<TimelineRef>(null);
 
   useEffect(() => {
     supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
@@ -59,6 +60,7 @@ export default function HomeClient() {
             </span>
           </div>
           <Timeline
+            ref={timelineRef}
             user={user}
             onNeedAuth={() => setShowAuth(true)}
             onKarikariClick={(postId: string, catName: string) => {
@@ -89,6 +91,9 @@ export default function HomeClient() {
           user={user}
           onClose={() => setKarikariTarget(null)}
           onSuccess={() => {
+            if (karikariTarget) {
+              timelineRef.current?.incrementChurruCount(karikariTarget.postId);
+            }
             setKarikariTarget(null);
             triggerCatBurst();
             showToast('カリカリをあげました！ 🍪 猫が喜んでいます…');

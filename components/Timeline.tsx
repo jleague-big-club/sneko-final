@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { supabaseClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import PostCard from '@/components/PostCard';
@@ -46,11 +46,25 @@ const CAT_EMOJI: Record<string, string> = {
 
 export { CAT_EMOJI };
 
-export default function Timeline({ user, onNeedAuth, onKarikariClick, onToast }: TimelineProps) {
+export interface TimelineRef {
+  incrementChurruCount: (postId: string) => void;
+}
+
+const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onKarikariClick, onToast }, ref) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    incrementChurruCount: (postId: string) => {
+      setPosts(prev =>
+        prev.map(p =>
+          p.id === postId ? { ...p, churru_count: (p.churru_count || 0) + 1 } : p
+        )
+      );
+    }
+  }));
 
   const fetchPosts = useCallback(async () => {
     const res = await fetch(`/api/posts?limit=30&t=${Date.now()}`);
@@ -80,29 +94,41 @@ export default function Timeline({ user, onNeedAuth, onKarikariClick, onToast }:
 
   const handleLike = async (postId: string) => {
     if (!user) { onNeedAuth(); return; }
-    const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
-    const res = await fetch('/api/likes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ postId }),
-    });
-    if (!res.ok) return;
-    const { liked } = await res.json();
-
-    // 楽観的UI更新
+    
+    // 楽観的UI更新（fetchの前に実行）
+    let isNowLiked = false;
     setLikedIds(prev => {
       const next = new Set(prev);
-      liked ? next.add(postId) : next.delete(postId);
+      if (next.has(postId)) {
+        next.delete(postId);
+        isNowLiked = false;
+      } else {
+        next.add(postId);
+        isNowLiked = true;
+      }
       return next;
     });
     setPosts(prev =>
       prev.map(p =>
         p.id === postId
-          ? { ...p, likes_count: Math.max(0, p.likes_count + (liked ? 1 : -1)) }
+          ? { ...p, likes_count: Math.max(0, p.likes_count + (isNowLiked ? 1 : -1)) }
           : p
       )
     );
-    if (liked) onToast('肉球を押したよ 🐾');
+    if (isNowLiked) onToast('肉球を押したよ 🐾');
+
+    // バックグラウンドでサーバー送信
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+      await fetch('/api/likes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ postId }),
+      });
+    } catch (err) {
+      console.error('Failed to sync like with server:', err);
+      // 失敗してもUIは戻さない（次のfetchPostsで同期されるため）
+    }
   };
 
   if (loading) {
@@ -138,4 +164,7 @@ export default function Timeline({ user, onNeedAuth, onKarikariClick, onToast }:
       ))}
     </div>
   );
-}
+});
+
+Timeline.displayName = 'Timeline';
+export default Timeline;

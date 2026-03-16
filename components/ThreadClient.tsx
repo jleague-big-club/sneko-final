@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabaseClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import AuthModal from '@/components/AuthModal';
@@ -109,24 +109,27 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
 
   const handleLike = async (postId: string) => {
     if (!user) { setShowAuth(true); return; }
-    const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
-    const res = await fetch('/api/likes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ postId }),
-    });
-    if (!res.ok) return;
-    const { liked } = await res.json();
 
-    // 楽観的UI更新
+    // 楽観的UI更新（fetchの前に実行）
     setPosts(prev =>
       prev.map(p =>
         p.id === postId
-          ? { ...p, likes_count: Math.max(0, p.likes_count + (liked ? 1 : -1)) }
+          ? { ...p, likes_count: p.likes_count + 1 }
           : p
       )
     );
-    if (liked) showToast('肉球を押したよ 🐾');
+    showToast('肉球を押したよ 🐾');
+
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+      await fetch('/api/likes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ postId }),
+      });
+    } catch (err) {
+      console.error('Failed to like post:', err);
+    }
   };
 
   return (
@@ -224,6 +227,15 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
           user={user}
           onClose={() => setKarikariTarget(null)}
           onSuccess={() => {
+            if (karikariTarget) {
+              setPosts(prev =>
+                prev.map(p =>
+                  p.id === karikariTarget.postId
+                    ? { ...p, churru_count: (p.churru_count || 0) + 1 }
+                    : p
+                )
+              );
+            }
             setKarikariTarget(null);
             triggerCatBurst();
             showToast('カリカリをあげました！ 🍪 猫が喜んでいます…');
