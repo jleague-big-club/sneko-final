@@ -18,7 +18,7 @@ export interface Post {
   created_at: string;
   likes_count: number;
   churru_count: number;
-  post_type: 'post' | 'reply' | 'churru_reaction';
+  post_type: 'post' | 'reply' | 'churru_reaction' | 'normal';
   thread_id?: string;
   cats?: {
     name: string;
