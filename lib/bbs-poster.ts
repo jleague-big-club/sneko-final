@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { generateAIResponse } from "@/lib/llm-wrapper";
-import { buildBbsDecisionPrompt, type ThreadInfo } from "@/lib/cat-prompts";
-import { selectRandomCat, getCatIdByName } from "@/lib/ai-poster";
+import { buildBbsDecisionPrompt, NYANJ_SYSTEM_PROMPT, type ThreadInfo } from "@/lib/cat-prompts";
+import { selectRandomCat, selectRandomNyanJCat, getCatIdByName } from "@/lib/ai-poster";
 
 interface BbsDecision {
   action: "new" | "reply";
@@ -11,7 +11,7 @@ interface BbsDecision {
 }
 
 // アクティブなスレッドを取得する（50レス未満のもののみ）
-async function getActiveThreads(limit = 10): Promise<ThreadInfo[]> {
+async function getActiveThreads(boardId: string, limit = 10): Promise<ThreadInfo[]> {
   const { data, error } = await supabaseAdmin
     .from("threads")
     .select(`
@@ -22,6 +22,7 @@ async function getActiveThreads(limit = 10): Promise<ThreadInfo[]> {
       ),
       posts (count)
     `)
+    .eq("board_id", boardId)
     .order("updated_at", { ascending: false })
     .limit(limit * 2); // フィルタリングを見越して多めに取得
 
@@ -68,11 +69,13 @@ async function getRecentThreadPosts(threadId: string, limit = 5): Promise<string
   }).join("\n");
 }
 
-// BBSへの自動投稿ロジック
+// BBS/にゃんJへの自動投稿ロジック
 export async function createNewBbsPost(
-  preferredProvider?: "gemini" | "groq"
+  preferredProvider?: "gemini" | "groq",
+  boardId: "bbs" | "nyanj" = "bbs"
 ): Promise<Record<string, any>> {
-  const cat = selectRandomCat();
+  const isNyanJ = boardId === "nyanj";
+  const cat = isNyanJ ? selectRandomNyanJCat() : selectRandomCat();
   const catId = await getCatIdByName(cat.name);
   if (!catId) {
     const msg = `Cat not found in DB: ${cat.name}`;
@@ -80,7 +83,7 @@ export async function createNewBbsPost(
     return { error: msg };
   }
 
-  const activeThreads = await getActiveThreads(10);
+  const activeThreads = await getActiveThreads(boardId, 10);
   
   // スレッドがない場合は必ず新規作成
   // スレッドがある場合は、70%の確率で返信、30%の確率で新規作成
@@ -94,8 +97,11 @@ export async function createNewBbsPost(
     // スレッド内の最近の会話を取得
     const recentPostsContext = await getRecentThreadPosts(targetThread.id);
     
+    const sysPrompt = isNyanJ ? NYANJ_SYSTEM_PROMPT : "";
+    
     // 返信用プロンプトを構築
     const replyPrompt = `
+${sysPrompt}
 ${cat.personality}
 あなたは匿名掲示板を見ています。
 以下のスレッドの会話の流れを読み、あなたの性格に合わせて短くレス（返信）を書き込んでください。
@@ -137,7 +143,9 @@ ${recentPostsContext}
     // 新スレ立て
     // 既存のJSONプロンプトをそのまま使うか、シンプルにタイトルと本文を分割して生成させる
     // ここでは確実にパースできるよう、シンプルな指示にする
+    const sysPrompt = isNyanJ ? NYANJ_SYSTEM_PROMPT : "";
     const newThreadPrompt = `
+${sysPrompt}
 ${cat.personality}
 あなたは匿名掲示板で新しい話題（スレッド）を立てようとしています。
 あなたの性格に合わせて、スレッドの「タイトル」と「最初の書き込み内容」を考えてください。
@@ -167,6 +175,7 @@ ${cat.personality}
       .insert({
         title: decision.title,
         cat_id: catId,
+        board_id: boardId,
       })
       .select("id")
       .single();

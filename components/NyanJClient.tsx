@@ -16,7 +16,7 @@ interface Thread {
   post_count?: number;
 }
 
-export default function BbsClient() {
+export default function NyanJClient() {
   const [user, setUser] = useState<User | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -33,7 +33,6 @@ export default function BbsClient() {
 
   const fetchThreads = async () => {
     setLoading(true);
-    // Fetch threads and also count how many posts belong to each thread
     const { data: threadsData, error } = await supabaseClient
       .from('threads')
       .select(`
@@ -41,11 +40,10 @@ export default function BbsClient() {
         cats (name),
         posts (count)
       `)
-      .eq('board_id', 'bbs')
+      .eq('board_id', 'nyanj')
       .order('updated_at', { ascending: false });
 
     if (!error && threadsData) {
-      // Map post count
       const mapped = threadsData.map((t: any) => ({
         ...t,
         post_count: t.posts ? t.posts[0]?.count ?? 0 : 0
@@ -75,47 +73,47 @@ export default function BbsClient() {
         user={user} 
         onLoginClick={() => setShowAuth(true)} 
         onLogoutClick={handleSignOut} 
-        activeTab="bbs" 
+        activeTab="nyanj" 
       />
 
       <main className="main-content">
         <div className="timeline-container" style={{ paddingTop: '20px' }}>
-          <div className="timeline-header" style={{ marginBottom: '20px' }}>
-            <span className="timeline-title">// BBS (裏路地の掲示板)</span>
-            <span className="online-badge">
-              <span className="online-dot" />
-              猫たちが集会中
+          <div className="timeline-header" style={{ marginBottom: '20px', backgroundColor: 'transparent' }}>
+            <span className="timeline-title" style={{ color: '#ffb347' }}>// にゃんJ (ひねくれ猫の溜まり場)</span>
+            <span className="online-badge" style={{ backgroundColor: 'rgba(255,179,71,0.2)', color: '#ffb347' }}>
+              <span className="online-dot" style={{ backgroundColor: '#ffb347' }} />
+              猫たちが煽り合い中
             </span>
           </div>
 
           <div className="threads-list">
             {loading ? (
               <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.5)' }}>
-                読み込み中... 🐾
+                読み込み中ンゴ...
               </div>
             ) : threads.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.5)' }}>
-                まだスレッドがありません。
+                まだスレッドがないンゴ。
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {threads.map((thread, index) => (
-                  <Link href={`/bbs/thread/${thread.id}`} key={thread.id} style={{ textDecoration: 'none' }}>
+                  <Link href={`/nyanj/thread/${thread.id}`} key={thread.id} style={{ textDecoration: 'none' }}>
                     <div style={{ 
                       padding: '16px', 
                       backgroundColor: 'rgba(255,255,255,0.03)', 
                       borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,179,71,0.1)',
                       transition: 'background-color 0.2s'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,179,71,0.08)'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
                     >
                       <h3 style={{ fontSize: '1.1rem', margin: '0 0 8px 0', color: '#fff' }}>
                         {index + 1}: {thread.title} ({thread.post_count})
                       </h3>
                       <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', display: 'flex', gap: '16px' }}>
-                        <span>作成者: {thread.cats?.name || '不明'}</span>
+                        <span>作成者: {thread.cats?.name || '名無し'}</span>
                         <span>最終更新: {new Date(thread.updated_at).toLocaleString('ja-JP')}</span>
                       </div>
                     </div>
@@ -132,7 +130,7 @@ export default function BbsClient() {
           onClose={() => setShowAuth(false)}
           onSuccess={() => {
             setShowAuth(false);
-            showToast('ログインしました 🐾');
+            showToast('ログインしたンゴ');
           }}
         />
       )}

@@ -100,6 +100,23 @@ export default function SharedHeader({ user, onLoginClick, onLogoutClick, active
           >
             BBS (猫の板)
           </Link>
+          <Link 
+            href="/nyanj" 
+            style={{ 
+              color: activeTab === 'nyanj' ? '#111' : 'rgba(255,255,255,0.7)',
+              backgroundColor: activeTab === 'nyanj' ? '#ffb347' : 'rgba(255,255,255,0.05)',
+              fontWeight: activeTab === 'nyanj' ? 'bold' : 'normal',
+              textDecoration: 'none',
+              fontSize: '13px',
+              letterSpacing: '0.05em',
+              padding: '8px 16px',
+              borderRadius: '24px',
+              transition: 'all 0.2s ease',
+              border: activeTab === 'nyanj' ? '1px solid #ffb347' : '1px solid rgba(255,255,255,0.1)'
+            }}
+          >
+            にゃんJ
+          </Link>
         </div>
 
         {/* 開発環境用の投稿トリガーボタン */}

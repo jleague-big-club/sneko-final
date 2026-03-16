@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { generateAIResponse } from "@/lib/llm-wrapper";
 import {
   CATS,
+  NYANJ_CATS,
   buildPostPrompt,
   buildReplyPrompt,
   buildKarikariPrompt,
@@ -17,6 +18,17 @@ export function selectRandomCat(): CatPromptConfig {
     if (random <= 0) return cat;
   }
   return CATS[0];
+}
+
+// 重みに基づいてにゃんJ用の猫をランダムに選ぶ
+export function selectRandomNyanJCat(): CatPromptConfig {
+  const totalWeight = NYANJ_CATS.reduce((sum, cat) => sum + cat.postWeight, 0);
+  let random = Math.random() * totalWeight;
+  for (const cat of NYANJ_CATS) {
+    random -= cat.postWeight;
+    if (random <= 0) return cat;
+  }
+  return NYANJ_CATS[0];
 }
 
 // DB上の猫IDを名前で引く

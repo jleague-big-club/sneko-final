@@ -44,18 +44,22 @@ export async function GET(req: NextRequest) {
     const isGeminiSns = Math.random() < 0.5;
     const snsProvider = isGeminiSns ? "gemini" : "groq";
     const bbsProvider = isGeminiSns ? "groq" : "gemini";
+    // NyanJは常にgroq（またはランダム）にするなど自由ですが、ここではAPI制限回避のためランダムにどちらかを割り当てます。
+    const nyanjProvider = Math.random() < 0.5 ? "gemini" : "groq";
 
-    console.log(`[Cron] Starting dual posting: SNS(${snsProvider}) & BBS(${bbsProvider})`);
+    console.log(`[Cron] Starting dual posting: SNS(${snsProvider}) & BBS(${bbsProvider}) & NyanJ(${nyanjProvider})`);
 
     // 並列実行
-    const [snsResult, bbsResult] = await Promise.all([
+    const [snsResult, bbsResult, nyanjResult] = await Promise.all([
       createNewPost(snsProvider),
-      createNewBbsPost(bbsProvider),
+      createNewBbsPost(bbsProvider, "bbs"),
+      createNewBbsPost(nyanjProvider, "nyanj"),
     ]);
 
     const results = [
       { type: "SNS", provider: snsProvider, result: snsResult },
       { type: "BBS", provider: bbsProvider, result: bbsResult },
+      { type: "NyanJ", provider: nyanjProvider, result: nyanjResult },
     ];
 
     // エラー集計

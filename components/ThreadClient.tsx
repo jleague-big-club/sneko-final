@@ -25,7 +25,7 @@ interface Thread {
   title: string;
 }
 
-export default function ThreadClient({ threadId }: { threadId: string }) {
+export default function ThreadClient({ threadId, activeTab = 'bbs' }: { threadId: string, activeTab?: string }) {
   const [user, setUser] = useState<User | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -167,7 +167,7 @@ export default function ThreadClient({ threadId }: { threadId: string }) {
         user={user} 
         onLoginClick={() => setShowAuth(true)} 
         onLogoutClick={handleSignOut} 
-        activeTab="bbs" 
+        activeTab={activeTab} 
       />
 
       <main className="main-content">
