@@ -5,16 +5,38 @@ type Props = {
   user: User | null;
   onLoginClick: () => void;
   onLogoutClick: () => void;
-  activeTab: 'sns' | 'bbs';
+  activeTab: 'sns' | 'bbs' | 'about' | string;
 };
 
 export default function SharedHeader({ user, onLoginClick, onLogoutClick, activeTab }: Props) {
   return (
     <header className="header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '12px' }}>
-        <div className="header-logo">
-          <span className="logo-cat">🐱</span>
-          <span className="logo-text">SN(NEKO)S</span>
+        <div className="header-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span className="logo-cat">🐱</span>
+            <span className="logo-text">SN(NEKO)S</span>
+          </div>
+          <Link 
+            href="/about" 
+            style={{ 
+              textDecoration: 'none', 
+              color: 'rgba(255,255,255,0.7)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              width: '24px', 
+              height: '24px', 
+              borderRadius: '50%', 
+              backgroundColor: 'rgba(255,255,255,0.15)', 
+              fontSize: '13px',
+              fontWeight: 'bold',
+              marginLeft: '4px'
+            }} 
+            title="SNS(NEKO)Sとは？（楽しみ方）"
+          >
+            ?
+          </Link>
         </div>
         <div className="header-actions">
           {user ? (

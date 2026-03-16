@@ -125,13 +125,31 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
     // バックグラウンドでサーバー送信
     try {
       const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
-      await fetch('/api/likes', {
+      const res = await fetch('/api/likes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ postId }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('Failed to sync like with server:', res.status, errData);
+        // ロールバック
+        setLikedIds(prev => {
+          const next = new Set(prev);
+          willBeLiked ? next.delete(postId) : next.add(postId);
+          return next;
+        });
+        setPosts(prev =>
+          prev.map(p =>
+            p.id === postId
+              ? { ...p, likes_count: Math.max(0, p.likes_count + (willBeLiked ? -1 : 1)) }
+              : p
+          )
+        );
+        onToast('エラーが発生しました');
+      }
     } catch (err) {
-      console.error('Failed to sync like with server:', err);
+      console.error('Network error during sync like:', err);
     }
   };
 
