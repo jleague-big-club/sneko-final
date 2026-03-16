@@ -40,14 +40,22 @@ export async function GET(req: NextRequest) {
 
     // エラー集計
     const errors = results.filter(r => r.result?.error);
-    
-    if (errors.length > 0) {
-      console.error("Cron partial/full failure:", errors);
-      // 部分的な成功でも200を返しつつエラー情報を付与するか、500にするかは運用次第だが、
-      // 猫たちが活動中であることを見せたいので、1つでも成功していればokとする
-      if (errors.length === 2) {
-        return NextResponse.json({ error: "Both posts failed", details: errors }, { status: 500 });
+
+    // エラー詳細のログ
+    results.forEach(r => {
+      if (r.result?.error) {
+        console.error(`[Cron] ${r.type} (${r.provider}) failure:`, r.result.error);
+      } else {
+        console.log(`[Cron] ${r.type} (${r.provider}) success`);
       }
+    });
+
+    if (errors.length > 0) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: errors.length === 2 ? "Both posts failed" : "Partial failure", 
+        details: results 
+      }, { status: 500 });
     }
 
     return NextResponse.json({

@@ -69,7 +69,10 @@ async function createOriginalPost(
   preferredProvider?: "gemini" | "groq"
 ): Promise<Record<string, any>> {
   try {
+    console.log(`[${cat.name}] Generating post content using ${preferredProvider || 'default provider'}...`);
     const content = await generateAIResponse(buildPostPrompt(cat), false, preferredProvider);
+    console.log(`[${cat.name}] Generated content: ${content.substring(0, 50)}...`);
+    
     const { error: insertError } = await supabaseAdmin.from("posts").insert({
       cat_id: catId,
       content,
