@@ -53,7 +53,7 @@ export default function Timeline({ user, onNeedAuth, onChuuruClick, onToast }: T
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchPosts = useCallback(async () => {
-    const res = await fetch(`/api/posts-v3?t=${Date.now()}`);
+    const res = await fetch(`/api/posts?limit=30&t=${Date.now()}`);
     if (!res.ok) return;
     const data = await res.json();
     setPosts(data.posts ?? []);
