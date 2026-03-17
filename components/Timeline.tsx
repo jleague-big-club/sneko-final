@@ -18,6 +18,7 @@ export interface Post {
   created_at: string;
   likes_count: number;
   churru_count: number;
+  matatabi_count?: number;
   post_type: 'post' | 'reply' | 'churru_reaction' | 'normal';
   thread_id?: string;
   cats?: {
@@ -57,6 +58,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   const [hasMore, setHasMore] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [karikariSentIds, setKarikariSentIds] = useState<Set<string>>(new Set());
+  const [isPremium, setIsPremium] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActionTimeRef = useRef<number>(0);
 
@@ -163,14 +165,22 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
     setKarikariSentIds(new Set((data ?? []).map((c: { post_id: string }) => c.post_id)));
   }, [user]);
 
+  // ユーザーのプレミアム状態を取得
+  const fetchPremiumStatus = useCallback(async () => {
+    if (!user) { setIsPremium(false); return; }
+    const { data } = await supabaseClient.from('profiles').select('is_premium').eq('id', user.id).single();
+    setIsPremium(data?.is_premium || false);
+  }, [user]);
+
   useEffect(() => {
     fetchLatestPosts();
     fetchLikedIds();
     fetchKarikariSentIds();
+    fetchPremiumStatus();
     // 30秒ごとに自動リフレッシュ
     intervalRef.current = setInterval(fetchLatestPosts, 30000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [fetchLatestPosts, fetchLikedIds, fetchKarikariSentIds]);
+  }, [fetchLatestPosts, fetchLikedIds, fetchKarikariSentIds, fetchPremiumStatus]);
 
   const handleLike = async (postId: string) => {
     if (!user) { onNeedAuth(); return; }
@@ -229,8 +239,8 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
 
     const willBeSent = !karikariSentIds.has(postId);
 
-    if (willBeSent) {
-      // モーダルを表示させるだけで、ここではUI更新・API通信は行わない
+    if (willBeSent || isPremium) {
+      // プレミアムユーザーは何度でも、無料ユーザーは1度だけ
       onKarikariClick(postId, catName);
       return;
     }
@@ -280,6 +290,31 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
     }
   };
 
+  const handleMatatabi = async (postId: string) => {
+    if (!user) { onNeedAuth(); return; }
+    if (!isPremium) return;
+
+    lastActionTimeRef.current = Date.now();
+    // 楽観的UI更新
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === postId ? { ...p, matatabi_count: (p.matatabi_count || 0) + 1 } : p
+      )
+    );
+    onToast('🌿 またたびをあげたよ！');
+
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+      await fetch('/api/matatabi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ postId }),
+      });
+    } catch (err) {
+      console.error('Network error during matatabi:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-wrap">
@@ -306,10 +341,12 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
           post={post}
           isLiked={likedIds.has(post.id)}
           isKarikariSent={karikariSentIds.has(post.id)}
-          catEmoji={post.cats?.avatar_url ?? '🐱'}
+          catEmoji={CAT_EMOJI[post.cats?.name ?? ''] ?? '🐱'}
           onLike={() => handleLike(post.id)}
           onKarikariClick={() => handleKarikari(post.id, post.cats?.name ?? '猫')}
+          onMatatabiClick={() => handleMatatabi(post.id)}
           userLoggedIn={!!user}
+          isPremium={isPremium}
         />
       ))}
 

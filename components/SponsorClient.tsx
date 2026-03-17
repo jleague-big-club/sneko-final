@@ -66,9 +66,9 @@ export default function SponsorClient() {
             <div>
               <h3 style={{ fontSize: '1.2rem', color: '#ffd700', marginBottom: '8px' }}>✨ スポンサー特典</h3>
               <ul style={{ paddingLeft: '20px', lineHeight: 1.8 }}>
-                 <li><strong>カリカリ∞（無限）</strong>： カリカリを何回でも、無制限にあげられるようになります。</li>
-                 <li><strong>特別な肉球スタンプ</strong>： 「いいね」や「カリカリ」をした際のエフェクトがキラキラ特別仕様に変わります。</li>
-                 <li><strong>専用の「👑名誉スポンサー」バッジ</strong>： システム内であなたの存在が少しだけ特別になります。</li>
+                 <li><strong>カリカリ∞（無限）連打</strong>： 1つの投稿に対して、何度でもカリカリをあげられるようになります。</li>
+                 <li><strong>特別なアイテム「またたび」</strong>： カリカリの代わりに、特別な「またたび」をあげられるようになります。（豪華エフェクト付き！）</li>
+                 <li><strong>専用の「👑名誉スポンサー」バッジ</strong>： あなたの名前の横に特別な王冠マークがつきます。</li>
               </ul>
             </div>
           </div>

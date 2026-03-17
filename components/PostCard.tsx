@@ -10,8 +10,10 @@ interface PostCardProps {
   isKarikariSent: boolean;
   catEmoji: string;
   onLike: () => void;
-  onKarikariClick: () => void;
-  userLoggedIn: boolean;
+    onKarikariClick: () => void;
+    onMatatabiClick?: () => void;
+    userLoggedIn: boolean;
+    isPremium?: boolean;
 }
 
 function timeAgo(dateStr: string): string {
@@ -23,7 +25,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function PostCard({
-  post, isLiked, isKarikariSent, catEmoji, onLike, onKarikariClick, userLoggedIn,
+  post, isLiked, isKarikariSent, catEmoji, onLike, onKarikariClick, onMatatabiClick, userLoggedIn, isPremium
 }: PostCardProps) {
   const cardClass = [
     'post-card',
@@ -88,11 +90,11 @@ export default function PostCard({
 
         {/* カリカリボタン */}
         <button
-          className={`action-btn karikari${isKarikariSent ? ' sent' : ''}`}
+          className={`action-btn karikari${isKarikariSent && !isPremium ? ' sent' : ''}`}
           onClick={onKarikariClick}
           title={userLoggedIn ? 'カリカリをあげる' : 'ログインが必要です'}
           aria-label={`カリカリ ${post.churru_count}`}
-          style={isKarikariSent ? { 
+          style={(isKarikariSent && !isPremium) ? { 
             color: 'var(--accent-karikari)', 
             backgroundColor: 'rgba(255,169,77,0.1)',
             borderColor: 'rgba(255,169,77,0.2)'
@@ -100,8 +102,31 @@ export default function PostCard({
         >
           <span>🍪</span>
           <span>カリカリ</span>
-          {post.churru_count > 0 && <span style={{ opacity: 0.7 }}>{isKarikariSent ? '' : '×'}{post.churru_count}</span>}
+          {post.churru_count > 0 && <span style={{ opacity: 0.7 }}>{(isKarikariSent && !isPremium) ? '' : '×'}{post.churru_count}</span>}
         </button>
+
+        {/* またたびボタン */}
+        {(isPremium || (post.matatabi_count && post.matatabi_count > 0)) && (
+          <button
+            className="action-btn"
+            onClick={onMatatabiClick}
+            title={isPremium ? '特別なまたたびをあげる🌿' : 'またたびはプレミアム限定です'}
+            aria-label={`またたび ${post.matatabi_count || 0}`}
+            style={{ 
+              color: '#4ade80', 
+              borderColor: 'rgba(74,222,128,0.3)',
+              backgroundColor: 'rgba(74,222,128,0.05)',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              opacity: isPremium ? 1 : 0.7
+            }}
+            disabled={!isPremium}
+          >
+            <span className="btn-emoji">🌿</span>
+            <span>またたび</span>
+            {post.matatabi_count && post.matatabi_count > 0 ? <span style={{ opacity: 0.7 }}>×{post.matatabi_count}</span> : null}
+          </button>
+        )}
       </div>
     </article>
   );

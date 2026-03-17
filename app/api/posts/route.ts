@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
       post_type,
       likes_count,
       churru_count,
+      matatabi_count,
       created_at,
       parent_id,
       cats (

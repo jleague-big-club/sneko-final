@@ -27,6 +27,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "認証エラー" }, { status: 401 });
   }
 
+  // プレミアムユーザーかどうか確認
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("is_premium")
+    .eq("id", user.id)
+    .single();
+  const isPremium = profile?.is_premium || false;
+
   // カリカリ（内部的にはchurrusテーブル）レコードを保存（重複NG: UNIQUE制約）
   const { data: karikari, error: karikariError } = await supabaseAdmin
     .from("churrus")
@@ -40,17 +48,24 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (karikariError) {
-    // 既にカリカリ済み（UNIQUE制約違反）→ カリカリ解除
+    // 既にカリカリ済み（UNIQUE制約違反）
     if (karikariError.code === "23505") {
-      await supabaseAdmin
-        .from("churrus")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("post_id", postId);
+      if (isPremium) {
+        // プレミアムユーザーは制限なしで連打可能
+        await supabaseAdmin.rpc("increment_churru", { post_id: postId });
+        return NextResponse.json({ ok: true, sent: true, karikariId: "premium-multi" });
+      } else {
+        // 無料ユーザーはカリカリを解除
+        await supabaseAdmin
+          .from("churrus")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("post_id", postId);
 
-      // churru_countを減らす
-      await supabaseAdmin.rpc("decrement_churru", { post_id: postId });
-      return NextResponse.json({ ok: true, sent: false });
+        // churru_countを減らす
+        await supabaseAdmin.rpc("decrement_churru", { post_id: postId });
+        return NextResponse.json({ ok: true, sent: false });
+      }
     }
     return NextResponse.json({ error: karikariError.message }, { status: 500 });
   }
