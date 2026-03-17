@@ -45,6 +45,7 @@
 html {
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -136,6 +137,7 @@ button {
 .timeline-container {
   width: 100%;
   max-width: var(--timeline-w);
+  padding-top: 20px;
 }
 
 /* =============================================
@@ -381,9 +383,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 4px 16px;
+  padding: 0 16px 16px;
   border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .timeline-title {

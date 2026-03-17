@@ -56,6 +56,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [karikariSentIds, setKarikariSentIds] = useState<Set<string>>(new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActionTimeRef = useRef<number>(0);
 
@@ -147,13 +148,24 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
     setLikedIds(new Set((data ?? []).map((l: { post_id: string }) => l.post_id)));
   }, [user]);
 
+  // ユーザーのカリカリ済みIDを取得
+  const fetchKarikariSentIds = useCallback(async () => {
+    if (!user) { setKarikariSentIds(new Set()); return; }
+    const { data } = await supabaseClient
+      .from('churrus')
+      .select('post_id')
+      .eq('user_id', user.id);
+    setKarikariSentIds(new Set((data ?? []).map((c: { post_id: string }) => c.post_id)));
+  }, [user]);
+
   useEffect(() => {
     fetchLatestPosts();
     fetchLikedIds();
+    fetchKarikariSentIds();
     // 30秒ごとに自動リフレッシュ
     intervalRef.current = setInterval(fetchLatestPosts, 30000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [fetchLatestPosts, fetchLikedIds]);
+  }, [fetchLatestPosts, fetchLikedIds, fetchKarikariSentIds]);
 
   const handleLike = async (postId: string) => {
     if (!user) { onNeedAuth(); return; }
@@ -207,6 +219,62 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
     }
   };
 
+  const handleKarikari = async (postId: string, catName: string) => {
+    if (!user) { onNeedAuth(); return; }
+
+    lastActionTimeRef.current = Date.now();
+    const willBeSent = !karikariSentIds.has(postId);
+
+    // 楽観的UI更新
+    setKarikariSentIds(prev => {
+      const next = new Set(prev);
+      willBeSent ? next.add(postId) : next.delete(postId);
+      return next;
+    });
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === postId
+          ? { ...p, churru_count: Math.max(0, p.churru_count + (willBeSent ? 1 : -1)) }
+          : p
+      )
+    );
+
+    if (willBeSent) {
+      onKarikariClick(postId, catName);
+    } else {
+      onToast('カリカリを下げたよ 🐾');
+    }
+
+    // バックグラウンドでサーバー送信
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/karikari', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ postId }),
+      });
+
+      if (!res.ok) {
+        // ロールバック
+        setKarikariSentIds(prev => {
+          const next = new Set(prev);
+          willBeSent ? next.delete(postId) : next.add(postId);
+          return next;
+        });
+        setPosts(prev =>
+          prev.map(p =>
+            p.id === postId
+              ? { ...p, churru_count: Math.max(0, p.churru_count + (willBeSent ? -1 : 1)) }
+              : p
+          )
+        );
+        onToast('エラーが発生しました');
+      }
+    } catch (err) {
+      console.error('Network error during sync karikari:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-wrap">
@@ -232,9 +300,10 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
           key={post.id}
           post={post}
           isLiked={likedIds.has(post.id)}
+          isKarikariSent={karikariSentIds.has(post.id)}
           catEmoji={post.cats?.avatar_url ?? '🐱'}
           onLike={() => handleLike(post.id)}
-          onKarikariClick={() => onKarikariClick(post.id, post.cats?.name ?? '猫')}
+          onKarikariClick={() => handleKarikari(post.id, post.cats?.name ?? '猫')}
           userLoggedIn={!!user}
         />
       ))}

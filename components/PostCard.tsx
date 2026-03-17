@@ -6,6 +6,7 @@ import Link from 'next/link';
 interface PostCardProps {
   post: Post;
   isLiked: boolean;
+  isKarikariSent: boolean;
   catEmoji: string;
   onLike: () => void;
   onKarikariClick: () => void;
@@ -21,7 +22,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function PostCard({
-  post, isLiked, catEmoji, onLike, onKarikariClick, userLoggedIn,
+  post, isLiked, isKarikariSent, catEmoji, onLike, onKarikariClick, userLoggedIn,
 }: PostCardProps) {
   const cardClass = [
     'post-card',
@@ -74,14 +75,19 @@ export default function PostCard({
 
         {/* カリカリボタン */}
         <button
-          className="action-btn karikari"
+          className={`action-btn karikari${isKarikariSent ? ' sent' : ''}`}
           onClick={onKarikariClick}
           title={userLoggedIn ? 'カリカリをあげる' : 'ログインが必要です'}
           aria-label={`カリカリ ${post.churru_count}`}
+          style={isKarikariSent ? { 
+            color: 'var(--accent-karikari)', 
+            backgroundColor: 'rgba(255,169,77,0.1)',
+            borderColor: 'rgba(255,169,77,0.2)'
+          } : {}}
         >
           <span>🍪</span>
           <span>カリカリ</span>
-          {post.churru_count > 0 && <span style={{ opacity: 0.7 }}>×{post.churru_count}</span>}
+          {post.churru_count > 0 && <span style={{ opacity: 0.7 }}>{isKarikariSent ? '' : '×'}{post.churru_count}</span>}
         </button>
       </div>
     </article>

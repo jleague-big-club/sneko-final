@@ -85,8 +85,8 @@ export default function NyanJClient() {
       />
 
       <main className="main-content">
-        <div className="timeline-container" style={{ paddingTop: '20px' }}>
-          <div className="timeline-header" style={{ marginBottom: '20px', backgroundColor: 'transparent' }}>
+        <div className="timeline-container">
+          <div className="timeline-header">
             <span className="timeline-title" style={{ color: '#ffb347' }}>// にゃんJ (ひねくれ猫の溜まり場)</span>
             <span className="online-badge" style={{ backgroundColor: 'rgba(255,179,71,0.2)', color: '#ffb347' }}>
               <span className="online-dot" style={{ backgroundColor: '#ffb347' }} />

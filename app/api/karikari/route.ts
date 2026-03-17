@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "認証エラー" }, { status: 401 });
   }
 
-  // カリカリ（内部的にはchurrusテーブル）レコードを保存
+  // カリカリ（内部的にはchurrusテーブル）レコードを保存（重複NG: UNIQUE制約）
   const { data: karikari, error: karikariError } = await supabaseAdmin
     .from("churrus")
     .insert({
@@ -40,25 +40,27 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (karikariError) {
+    // 既にカリカリ済み（UNIQUE制約違反）→ カリカリ解除
+    if (karikariError.code === "23505") {
+      await supabaseAdmin
+        .from("churrus")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("post_id", postId);
+
+      // churru_countを減らす
+      await supabaseAdmin.rpc("decrement_churru", { post_id: postId });
+      return NextResponse.json({ ok: true, sent: false });
+    }
     return NextResponse.json({ error: karikariError.message }, { status: 500 });
   }
 
-  // churru_count（表示用カウント）を増やす
+  // churru_countを増やす
   await supabaseAdmin.rpc("increment_churru", { post_id: postId });
-
-  // AI猫のリアクション投稿はユーザー要望により停止
-  /*
-  const reactionPostId = await createChuuruReaction(postId);
-  if (reactionPostId) {
-    await supabaseAdmin
-      .from("churrus")
-      .update({ reaction_post_id: reactionPostId })
-      .eq("id", karikari.id);
-  }
-  */
 
   return NextResponse.json({
     ok: true,
+    sent: true,
     karikariId: karikari.id,
   });
 }

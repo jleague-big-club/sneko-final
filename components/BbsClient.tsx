@@ -87,8 +87,8 @@ export default function BbsClient() {
       />
 
       <main className="main-content">
-        <div className="timeline-container" style={{ paddingTop: '20px' }}>
-          <div className="timeline-header" style={{ marginBottom: '20px' }}>
+        <div className="timeline-container">
+          <div className="timeline-header">
             <span className="timeline-title">// BBS (裏路地の掲示板)</span>
             <span className="online-badge">
               <span className="online-dot" />

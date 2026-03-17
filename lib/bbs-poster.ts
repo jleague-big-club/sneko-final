@@ -83,6 +83,8 @@ export async function createNewBbsPost(
     return { error: msg };
   }
 
+  console.log(`[BBS-Poster] Start ${boardId} post by ${cat.name}...`);
+
   // にゃんJ独自のルール: 1つのスレを埋めてから次へ
   if (isNyanJ) {
     // 最新のスレッドを1件取得
@@ -95,14 +97,18 @@ export async function createNewBbsPost(
       .order("created_at", { ascending: false })
       .limit(1);
 
+    if (fetchError) {
+      console.error(`[NyanJ] Error fetching latest thread:`, fetchError);
+    }
+
     const latestThread = latestThreads?.[0];
     const postCount = latestThread?.posts?.[0]?.count ?? 0;
-    const LIMIT = 50; // にゃんJのスレ上限
+    const LIMIT = 100; // にゃんJのスレ上限を100に拡大
 
     if (latestThread && postCount < LIMIT) {
       // まだ埋まってないのでレスする
-      console.log(`[NyanJ] Focusing on thread: ${latestThread.title} (${postCount}/${LIMIT})`);
-      const recentContext = await getRecentThreadPosts(latestThread.id, 10);
+      console.log(`[NyanJ] Thread "${latestThread.title}" is active (${postCount}/${LIMIT}). Replying...`);
+      const recentContext = await getRecentThreadPosts(latestThread.id, 15);
       
       const replyPrompt = `
 ${NYANJ_SYSTEM_PROMPT}
@@ -129,7 +135,10 @@ JSON形式で出力してください： {"content": "レス内容"}
         post_type: "reply",
       });
 
-      if (replyError) return { error: replyError };
+      if (replyError) {
+        console.error(`[NyanJ] Reply Insert Error:`, replyError);
+        return { error: replyError };
+      }
 
       // 保守
       await supabaseAdmin
@@ -137,40 +146,46 @@ JSON形式で出力してください： {"content": "レス内容"}
         .update({ updated_at: new Date().toISOString() })
         .eq("id", latestThread.id);
 
+      console.log(`[NyanJ] Reply success to "${latestThread.title}"`);
       return { ok: true, action: "reply", cat: cat.name, threadId: latestThread.id, title: latestThread.title };
     } else {
-      // スレがない、または埋まったので「新しい話題」で次スレを立てる
-      console.log(`[NyanJ] Previous thread full or missing. Generating a completely new topic...`);
+      // スレがない、または埋まったので「次スレ」を立てる
+      const isNewSuccessor = !!latestThread && postCount >= LIMIT;
+      console.log(`[NyanJ] ${isNewSuccessor ? "Thread full." : "No threads found."} Creating new topic...`);
       
-      const newThreadPrompt = `
-${NYANJ_SYSTEM_PROMPT}
+      // 次スレの場合はタイトルを引き継ぐ
+      let threadTitleSuggestion = "";
+      if (isNewSuccessor) {
+        const baseTitle = latestThread.title.replace(/\sPart\s\d+$/i, "");
+        const match = latestThread.title.match(/Part\s(\d+)$/i);
+        const nextPart = match ? parseInt(match[1]) + 1 : 2;
+        threadTitleSuggestion = `${baseTitle} Part ${nextPart}`;
+      }
 
-【あなたの名前と性格】
-名前: ${cat.name}
-性格: ${cat.personality}
-
-にゃんJに新しくスレッドを立てます。
-今までとは全く違う、新しくて勢いのあるスレタイと、その最初の書き込み内容（>>1）を考えてください。
-JSON形式で出力してください： {"title": "新しいスレタイ", "content": "書き込み内容"}
-`.trim();
-
-      const response = await generateAIResponse(newThreadPrompt, true, preferredProvider) as { title: string, content: string };
+      const newThreadPrompt = buildNyanJDecisionPrompt(cat, latestThread ? [{ id: latestThread.id, title: latestThread.title, catName: "..." }] : []);
+      const response = await generateAIResponse(newThreadPrompt, true, preferredProvider) as { action: string, title: string, content: string };
       
       if (!response?.title || !response?.content) {
         return { error: "NyanJ new topic generation failed" };
       }
 
+      // 埋め立て後の次スレならタイトルを強制
+      const finalTitle = isNewSuccessor ? threadTitleSuggestion : response.title.trim();
+
       const { data: newThread, error: threadError } = await supabaseAdmin
         .from("threads")
         .insert({
-          title: response.title.trim(),
+          title: finalTitle,
           cat_id: catId,
-          board_id: boardId,
+          board_id: "nyanj",
         })
         .select("id")
         .single();
 
-      if (threadError || !newThread) return { error: threadError };
+      if (threadError || !newThread) {
+        console.error(`[NyanJ] Thread Creation Error:`, threadError);
+        return { error: threadError };
+      }
 
       await supabaseAdmin.from("posts").insert({
         cat_id: catId,
@@ -179,7 +194,8 @@ JSON形式で出力してください： {"title": "新しいスレタイ", "con
         post_type: "normal",
       });
 
-      return { ok: true, action: "new", cat: cat.name, title: response.title };
+      console.log(`[NyanJ] New thread created: "${finalTitle}"`);
+      return { ok: true, action: "new", cat: cat.name, title: finalTitle };
     }
   }
 
@@ -187,7 +203,7 @@ JSON形式で出力してください： {"title": "新しいスレタイ", "con
   const activeThreads = await getActiveThreads(boardId, 10);
   
   // AIに「スレ立て」か「レス」かを選ばせる
-  console.log(`[BBS] ${cat.name} weighting decisions...`);
+  console.log(`[BBS] ${cat.name} thinking (Active threads: ${activeThreads.length})...`);
   const decisionPrompt = buildBbsDecisionPrompt(cat, activeThreads);
 
   const decision = (await generateAIResponse(
@@ -200,13 +216,18 @@ JSON形式で出力してください： {"title": "新しいスレタイ", "con
     return { error: `[${cat.name}] BBS Decision generation failed` };
   }
 
-  if (decision.action === "reply" && decision.threadId && activeThreads.some(t => t.id === decision.threadId)) {
+  console.log(`[BBS] Decision: ${decision.action} by ${cat.name}`);
+
+  // threadIdのクリーニング (UUIDのみを抽出)
+  const targetThreadId = decision.threadId?.trim();
+
+  if (decision.action === "reply" && targetThreadId && activeThreads.some(t => t.id === targetThreadId)) {
     // 既存スレへのレス
-    console.log(`[${cat.name}] Responding to thread: ${decision.threadId}`);
+    console.log(`[${cat.name}] Responding to thread: ${targetThreadId}`);
     
     const { error: replyError } = await supabaseAdmin.from("posts").insert({
       cat_id: catId,
-      thread_id: decision.threadId,
+      thread_id: targetThreadId,
       content: decision.content.trim(),
       post_type: "reply",
     });
@@ -220,25 +241,23 @@ JSON形式で出力してください： {"title": "新しいスレタイ", "con
     await supabaseAdmin
       .from("threads")
       .update({ updated_at: new Date().toISOString() })
-      .eq("id", decision.threadId);
+      .eq("id", targetThreadId);
 
-    console.log(`[${cat.name}] BBSレス完了 (Thread: ${decision.threadId})`);
-    return { ok: true, action: "reply", cat: cat.name, threadId: decision.threadId };
+    console.log(`[${cat.name}] BBSレス完了 (Thread: ${targetThreadId})`);
+    return { ok: true, action: "reply", cat: cat.name, threadId: targetThreadId };
 
   } else {
     // 新スレ立て (decision.action === "new" または reply先が見つからない場合)
-    console.log(`[${cat.name}] Creating new thread: ${decision.title}`);
-    
-    // スレ立てのバリデーション (JSONパースエラー対策)
-    const title = decision.title || "無題";
-    const content = decision.content || "...";
+    const title = decision.title?.trim() || "無題";
+    const content = decision.content?.trim() || "...";
+    console.log(`[${cat.name}] Creating new thread: "${title}"`);
 
     const { data: newThread, error: threadError } = await supabaseAdmin
       .from("threads")
       .insert({
         title,
         cat_id: catId,
-        board_id: boardId,
+        board_id: "bbs",
       })
       .select("id")
       .single();
@@ -259,7 +278,7 @@ JSON形式で出力してください： {"title": "新しいスレタイ", "con
       console.error(`[${cat.name}] BBS Post(>>1) Insert Error:`, postError);
       return { error: postError };
     }
-    console.log(`[${cat.name}] BBS新スレ作成: 「${title}」`);
+    console.log(`[${cat.name}] BBS新スレ作成成功: 「${title}」`);
     return { ok: true, action: "new", cat: cat.name, title };
   }
 }

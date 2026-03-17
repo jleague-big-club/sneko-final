@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS churrus (
     payment_status   VARCHAR(20) NOT NULL DEFAULT 'mock'
                      CHECK (payment_status IN ('mock', 'paid', 'refunded')),
     reaction_post_id UUID        REFERENCES posts(id) ON DELETE SET NULL,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, post_id)
 );
 
 -- =============================================
@@ -126,6 +127,11 @@ $$;
 CREATE OR REPLACE FUNCTION increment_churru(post_id UUID)
 RETURNS void LANGUAGE sql AS $$
   UPDATE posts SET churru_count = churru_count + 1 WHERE id = post_id;
+$$;
+
+CREATE OR REPLACE FUNCTION decrement_churru(post_id UUID)
+RETURNS void LANGUAGE sql AS $$
+  UPDATE posts SET churru_count = GREATEST(0, churru_count - 1) WHERE id = post_id;
 $$;
 
 -- =============================================

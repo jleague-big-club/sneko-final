@@ -4,7 +4,7 @@ dotenv.config({ path: '.env.local' });
 
 async function testGetActiveThreads() {
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const boardId = 'nyanj';
+  const boardId = 'bbs';
   
   const { data, error } = await supabase
     .from("threads")

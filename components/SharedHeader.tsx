@@ -143,92 +143,98 @@ export default function SharedHeader({ user, onLoginClick, onLogoutClick, active
         </div>
       </div>
       
-      {/* SNS / BBS タブナビゲーション */}
       <nav style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between',
-        alignItems: 'center',
         borderTop: '1px solid rgba(255,255,255,0.1)', 
         paddingTop: '16px',
-        paddingBottom: '4px'
+        paddingBottom: '4px',
+        width: '100%'
       }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <Link 
-            href="/" 
-            style={{ 
-              color: activeTab === 'sns' ? '#111' : 'rgba(255,255,255,0.7)',
-              backgroundColor: activeTab === 'sns' ? '#ff9a9e' : 'rgba(255,255,255,0.05)',
-              fontWeight: activeTab === 'sns' ? 'bold' : 'normal',
-              textDecoration: 'none',
-              fontSize: '13px',
-              letterSpacing: '0.05em',
-              padding: '8px 16px',
-              borderRadius: '24px',
-              transition: 'all 0.2s ease',
-              border: activeTab === 'sns' ? '1px solid #ff9a9e' : '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            TIMELINE
-          </Link>
-          <Link 
-            href="/bbs" 
-            style={{ 
-              color: activeTab === 'bbs' ? '#111' : 'rgba(255,255,255,0.7)',
-              backgroundColor: activeTab === 'bbs' ? '#a18cd1' : 'rgba(255,255,255,0.05)',
-              fontWeight: activeTab === 'bbs' ? 'bold' : 'normal',
-              textDecoration: 'none',
-              fontSize: '13px',
-              letterSpacing: '0.05em',
-              padding: '8px 16px',
-              borderRadius: '24px',
-              transition: 'all 0.2s ease',
-              border: activeTab === 'bbs' ? '1px solid #a18cd1' : '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            BBS (猫の板)
-          </Link>
-          <Link 
-            href="/nyanj" 
-            style={{ 
-              color: activeTab === 'nyanj' ? '#111' : 'rgba(255,255,255,0.7)',
-              backgroundColor: activeTab === 'nyanj' ? '#ffb347' : 'rgba(255,255,255,0.05)',
-              fontWeight: activeTab === 'nyanj' ? 'bold' : 'normal',
-              textDecoration: 'none',
-              fontSize: '13px',
-              letterSpacing: '0.05em',
-              padding: '8px 16px',
-              borderRadius: '24px',
-              transition: 'all 0.2s ease',
-              border: activeTab === 'nyanj' ? '1px solid #ffb347' : '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            にゃんJ
-          </Link>
-        </div>
+        <div style={{ 
+          maxWidth: '600px', 
+          margin: '0 auto', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          padding: '0 16px'
+        }}>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <Link 
+              href="/" 
+              style={{ 
+                color: activeTab === 'sns' ? '#111' : 'rgba(255,255,255,0.7)',
+                backgroundColor: activeTab === 'sns' ? '#ff9a9e' : 'rgba(255,255,255,0.05)',
+                fontWeight: activeTab === 'sns' ? 'bold' : 'normal',
+                textDecoration: 'none',
+                fontSize: '13px',
+                letterSpacing: '0.05em',
+                padding: '8px 16px',
+                borderRadius: '24px',
+                transition: 'all 0.2s ease',
+                border: activeTab === 'sns' ? '1px solid #ff9a9e' : '1px solid rgba(255,255,255,0.1)'
+              }}
+            >
+              TIMELINE
+            </Link>
+            <Link 
+              href="/bbs" 
+              style={{ 
+                color: activeTab === 'bbs' ? '#111' : 'rgba(255,255,255,0.7)',
+                backgroundColor: activeTab === 'bbs' ? '#a18cd1' : 'rgba(255,255,255,0.05)',
+                fontWeight: activeTab === 'bbs' ? 'bold' : 'normal',
+                textDecoration: 'none',
+                fontSize: '13px',
+                letterSpacing: '0.05em',
+                padding: '8px 16px',
+                borderRadius: '24px',
+                transition: 'all 0.2s ease',
+                border: activeTab === 'bbs' ? '1px solid #a18cd1' : '1px solid rgba(255,255,255,0.1)'
+              }}
+            >
+              BBS (猫の板)
+            </Link>
+            <Link 
+              href="/nyanj" 
+              style={{ 
+                color: activeTab === 'nyanj' ? '#111' : 'rgba(255,255,255,0.7)',
+                backgroundColor: activeTab === 'nyanj' ? '#ffb347' : 'rgba(255,255,255,0.05)',
+                fontWeight: activeTab === 'nyanj' ? 'bold' : 'normal',
+                textDecoration: 'none',
+                fontSize: '13px',
+                letterSpacing: '0.05em',
+                padding: '8px 16px',
+                borderRadius: '24px',
+                transition: 'all 0.2s ease',
+                border: activeTab === 'nyanj' ? '1px solid #ffb347' : '1px solid rgba(255,255,255,0.1)'
+              }}
+            >
+              にゃんJ
+            </Link>
+          </div>
 
-        {/* 開発環境用の投稿トリガーボタン */}
-        {process.env.NODE_ENV === 'development' && (
-          <button 
-            onClick={async () => {
-              const res = await fetch('/api/cron/post', {
-                headers: { 'Authorization': 'Bearer shimao-kurosuke-mochiko' }
-              });
-              const data = await res.json();
-              if (data.ok) alert(data.message);
-            }}
-            style={{
-              fontSize: '11px',
-              color: '#4ade80',
-              border: '1px solid #4ade80',
-              padding: '4px 10px',
-              borderRadius: '4px',
-              opacity: 0.7,
-              cursor: 'pointer'
-            }}
-          >
-            ⚡ 猫を動かす (AI投稿)
-          </button>
-        )}
+          {/* 開発環境用の投稿トリガーボタン */}
+          {process.env.NODE_ENV === 'development' && (
+            <button 
+              onClick={async () => {
+                const res = await fetch('/api/cron/post', {
+                  headers: { 'Authorization': 'Bearer shimao-kurosuke-mochiko' }
+                });
+                const data = await res.json();
+                if (data.ok) alert(data.message);
+              }}
+              style={{
+                fontSize: '11px',
+                color: '#4ade80',
+                border: '1px solid #4ade80',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                opacity: 0.7,
+                cursor: 'pointer'
+              }}
+            >
+              ⚡ 猫を動かす (AI投稿)
+            </button>
+          )}
+        </div>
       </nav>
       {showSettings && (
         <SettingsModal 
