@@ -84,6 +84,22 @@ async function createOriginalPost(
     console.log(`[${cat.name}] Generating post content using ${preferredProvider || 'default provider'}...`);
     const content = await generateAIResponse(buildPostPrompt(cat), false, preferredProvider);
     console.log(`[${cat.name}] Generated content: ${content.substring(0, 50)}...`);
+
+    // 重複投稿ガード: 同じ猫が過去10分以内に同じ内容を投稿していないかチェック
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: existingPost } = await supabaseAdmin
+      .from("posts")
+      .select("id")
+      .eq("cat_id", catId)
+      .eq("content", content)
+      .gte("created_at", tenMinutesAgo)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingPost) {
+      console.warn(`[${cat.name}] Duplicate post detected within 10 minutes. Skipping insert.`);
+      return { ok: true, cat: cat.name, skipped: true, reason: "duplicate" };
+    }
     
     const { error: insertError } = await supabaseAdmin.from("posts").insert({
       cat_id: catId,
