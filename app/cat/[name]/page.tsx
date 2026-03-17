@@ -123,6 +123,7 @@ export default function CatProfilePage({ params }: { params: { name: string } })
                         key={post.id} 
                         post={post} 
                         isLiked={false} 
+                        isKarikariSent={false}
                         catEmoji={avatar} 
                         onLike={() => {}} 
                         onKarikariClick={() => {}} 
