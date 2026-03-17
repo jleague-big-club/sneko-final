@@ -12,7 +12,7 @@ interface Thread {
   title: string;
   created_at: string;
   updated_at: string;
-  cats: { name: string } | null;
+  cats: { name: string, avatar_url: string | null } | null;
   post_count?: number;
 }
 
@@ -44,7 +44,7 @@ export default function BbsClient() {
       .from('threads')
       .select(`
         id, title, created_at, updated_at,
-        cats (name),
+        cats (name, avatar_url),
         posts (count)
       `, { count: 'exact' })
       .eq('board_id', 'bbs')
@@ -122,8 +122,17 @@ export default function BbsClient() {
                       <h3 style={{ fontSize: '1.1rem', margin: '0 0 8px 0', color: '#fff' }}>
                         {(currentPage - 1) * itemsPerPage + index + 1}: {thread.title} ({thread.post_count})
                       </h3>
-                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', display: 'flex', gap: '16px' }}>
-                        <span>作成者: {thread.cats?.name || '不明'}</span>
+                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                            {thread.cats?.avatar_url?.startsWith('/') ? (
+                              <img src={thread.cats.avatar_url} alt={thread.cats.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <span style={{ fontSize: '0.8rem' }}>{thread.cats?.avatar_url || '🐱'}</span>
+                            )}
+                          </div>
+                          <span>作成者: {thread.cats?.name || '不明'}</span>
+                        </div>
                         <span>最終更新: {new Date(thread.updated_at).toLocaleString('ja-JP')}</span>
                       </div>
                     </div>
