@@ -7,6 +7,7 @@ import AuthModal from '@/components/AuthModal';
 import SharedHeader from '@/components/SharedHeader';
 import KarikariModal from '@/components/KarikariModal';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Post {
   id: string;
@@ -197,7 +198,7 @@ export default function ThreadClient({ threadId, activeTab = 'bbs' }: { threadId
                         <Link href={`/cat/${catName}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
                           <div style={{ width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', fontSize: '1rem' }}>
                             {avatar && avatar.startsWith('/') ? (
-                              <img src={avatar} alt={catName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <Image src={avatar} alt={catName} width={24} height={24} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
                               avatar || '🐱'
                             )}

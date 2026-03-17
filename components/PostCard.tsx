@@ -2,6 +2,7 @@
 
 import type { Post } from '@/components/Timeline';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface PostCardProps {
   post: Post;
@@ -51,9 +52,11 @@ export default function PostCard({
         <Link href={`/cat/${post.cats?.name}`} style={{ display: 'flex', gap: '12px', textDecoration: 'none', color: 'inherit' }}>
           <div className="cat-avatar">
             {catEmoji.startsWith('/') ? (
-              <img 
+              <Image 
                 src={catEmoji} 
                 alt={post.cats?.name ?? 'cat'} 
+                width={40}
+                height={40}
                 style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
               />
             ) : (

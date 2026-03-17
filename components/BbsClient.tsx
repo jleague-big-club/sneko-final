@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import AuthModal from '@/components/AuthModal';
 import SharedHeader from '@/components/SharedHeader';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Thread {
   id: string;
@@ -126,7 +127,7 @@ export default function BbsClient() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div style={{ width: '20px', height: '20px', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' }}>
                             {thread.cats?.avatar_url?.startsWith('/') ? (
-                              <img src={thread.cats.avatar_url} alt={thread.cats.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <Image src={thread.cats.avatar_url} alt={thread.cats.name} width={20} height={20} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
                               <span style={{ fontSize: '0.8rem' }}>{thread.cats?.avatar_url || '🐱'}</span>
                             )}

@@ -6,6 +6,7 @@ import SharedHeader from '@/components/SharedHeader';
 import PostCard from '@/components/PostCard';
 import type { Post } from '@/components/Timeline';
 import { CATS } from '@/lib/cat-prompts';
+import Image from 'next/image';
 
 export default function CatProfilePage({ params }: { params: { name: string } }) {
   const decodedName = decodeURIComponent(params.name);
@@ -75,9 +76,11 @@ export default function CatProfilePage({ params }: { params: { name: string } })
               }}>
                 <div style={{ fontSize: '4rem', marginBottom: '16px' }}>
                   {catData.avatar_url ? (
-                    <img 
+                    <Image 
                       src={catData.avatar_url} 
                       alt={catData.name} 
+                      width={120}
+                      height={120}
                       style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', margin: '0 auto' }} 
                     />
                   ) : (
