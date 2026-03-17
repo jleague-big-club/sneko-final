@@ -7,6 +7,9 @@ import PostCard from '@/components/PostCard';
 import type { Post } from '@/components/Timeline';
 import { CATS } from '@/lib/cat-prompts';
 import Image from 'next/image';
+import type { User } from '@supabase/supabase-js';
+import KarikariModal from '@/components/KarikariModal';
+import AuthModal from '@/components/AuthModal';
 
 export default function CatProfilePage({ params }: { params: { name: string } }) {
   const decodedName = decodeURIComponent(params.name);
@@ -14,6 +17,134 @@ export default function CatProfilePage({ params }: { params: { name: string } })
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'timeline' | 'bbs'>('timeline');
+
+  const [user, setUser] = useState<User | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [karikariSentIds, setKarikariSentIds] = useState<Set<string>>(new Set());
+  const [karikariTarget, setKarikariTarget] = useState<{postId: string, catName: string} | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [catBurst, setCatBurst] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+  const triggerCatBurst = () => {
+    setCatBurst(true);
+    setTimeout(() => setCatBurst(false), 2000);
+  };
+
+  useEffect(() => {
+    supabaseClient.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setLikedIds(new Set());
+      setKarikariSentIds(new Set());
+      return;
+    }
+    const fetchStates = async () => {
+      const [{ data: l }, { data: k }] = await Promise.all([
+        supabaseClient.from('likes').select('post_id').eq('user_id', user.id),
+        supabaseClient.from('churrus').select('post_id').eq('user_id', user.id)
+      ]);
+      setLikedIds(new Set((l ?? []).map((i: any) => i.post_id)));
+      setKarikariSentIds(new Set((k ?? []).map((i: any) => i.post_id)));
+    };
+    fetchStates();
+  }, [user]);
+
+  const handleLike = async (postId: string) => {
+    if (!user) { setShowAuth(true); return; }
+    const willBeLiked = !likedIds.has(postId);
+
+    setLikedIds(prev => {
+      const next = new Set(prev);
+      willBeLiked ? next.add(postId) : next.delete(postId);
+      return next;
+    });
+    setPosts(prev => prev.map(p =>
+      p.id === postId ? { ...p, likes_count: Math.max(0, p.likes_count + (willBeLiked ? 1 : -1)) } : p
+    ));
+    if (willBeLiked) showToast('肉球を押したよ 🐾');
+
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/likes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ postId }),
+      });
+      if (!res.ok) {
+        setLikedIds(prev => {
+          const next = new Set(prev);
+          willBeLiked ? next.delete(postId) : next.add(postId);
+          return next;
+        });
+        setPosts(prev => prev.map(p =>
+          p.id === postId ? { ...p, likes_count: Math.max(0, p.likes_count + (willBeLiked ? -1 : 1)) } : p
+        ));
+        showToast('エラーが発生しました');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleKarikariMode = async (postId: string, catName: string) => {
+    if (!user) { setShowAuth(true); return; }
+    const willBeSent = !karikariSentIds.has(postId);
+
+    if (willBeSent) {
+      setKarikariTarget({ postId, catName });
+      return;
+    }
+
+    setKarikariSentIds(prev => {
+      const next = new Set(prev);
+      next.delete(postId);
+      return next;
+    });
+    setPosts(prev => prev.map(p =>
+      p.id === postId ? { ...p, churru_count: Math.max(0, p.churru_count - 1) } : p
+    ));
+    showToast('カリカリを下げたよ 🐾');
+
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/karikari', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ postId }),
+      });
+
+      if (!res.ok) {
+        // ロールバック
+        setKarikariSentIds(prev => {
+          const next = new Set(prev);
+          next.add(postId);
+          return next;
+        });
+        setPosts(prev => prev.map(p =>
+          p.id === postId ? { ...p, churru_count: p.churru_count + 1 } : p
+        ));
+        showToast('エラーが発生しました');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabaseClient.auth.signOut();
+    showToast('ログアウトしました');
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -52,7 +183,7 @@ export default function CatProfilePage({ params }: { params: { name: string } })
 
   return (
     <>
-      <SharedHeader user={null} onLoginClick={() => {}} onLogoutClick={() => {}} activeTab="sns" />
+      <SharedHeader user={user} onLoginClick={() => setShowAuth(true)} onLogoutClick={handleLogout} activeTab="sns" />
       
       <main className="main-content">
         <div className="timeline-container" style={{ paddingTop: '40px' }}>
@@ -135,12 +266,12 @@ export default function CatProfilePage({ params }: { params: { name: string } })
                       <PostCard 
                         key={post.id} 
                         post={post} 
-                        isLiked={false} 
-                        isKarikariSent={false}
+                        isLiked={likedIds.has(post.id)} 
+                        isKarikariSent={karikariSentIds.has(post.id)}
                         catEmoji={catData.avatar_url || avatar} 
-                        onLike={() => {}} 
-                        onKarikariClick={() => {}} 
-                        userLoggedIn={false} 
+                        onLike={() => handleLike(post.id)} 
+                        onKarikariClick={() => handleKarikariMode(post.id, catData.name)} 
+                        userLoggedIn={!!user} 
                       />
                     ))
                   )
@@ -171,6 +302,52 @@ export default function CatProfilePage({ params }: { params: { name: string } })
           )}
         </div>
       </main>
+
+      {showAuth && (
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+          onSuccess={() => {
+            setShowAuth(false);
+            showToast('ログインしました 🐾');
+          }}
+        />
+      )}
+
+      {karikariTarget && (
+        <KarikariModal
+          postId={karikariTarget.postId}
+          catName={karikariTarget.catName}
+          user={user}
+          onClose={() => setKarikariTarget(null)}
+          onSuccess={() => {
+            if (karikariTarget) {
+              setKarikariSentIds(prev => {
+                const next = new Set(prev);
+                next.add(karikariTarget.postId);
+                return next;
+              });
+              setPosts(prev => prev.map(p => 
+                p.id === karikariTarget.postId ? { ...p, churru_count: (p.churru_count || 0) + 1 } : p
+              ));
+            }
+            setKarikariTarget(null);
+            triggerCatBurst();
+            showToast('カリカリをあげました！ 🍪 猫が喜んでいます…');
+          }}
+        />
+      )}
+
+      {toast && <div className="toast">{toast}</div>}
+
+      {catBurst && (
+        <div className="cat-burst-container">
+          {['🐱', '😸', '😻', '😽', '😺', '😼', '🙀', '🐈', '🐈‍⬛'].map((emoji, i) => (
+            <div key={i} className="burst-cat" style={{ '--i': i } as any}>
+              {emoji}
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

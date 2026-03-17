@@ -130,6 +130,11 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   useImperativeHandle(ref, () => ({
     incrementChurruCount: (postId: string) => {
       lastActionTimeRef.current = Date.now();
+      setKarikariSentIds(prev => {
+        const next = new Set(prev);
+        next.add(postId);
+        return next;
+      });
       setPosts(prev =>
         prev.map(p =>
           p.id === postId ? { ...p, churru_count: (p.churru_count || 0) + 1 } : p
@@ -222,30 +227,30 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   const handleKarikari = async (postId: string, catName: string) => {
     if (!user) { onNeedAuth(); return; }
 
-    lastActionTimeRef.current = Date.now();
     const willBeSent = !karikariSentIds.has(postId);
 
-    // 楽観的UI更新
+    if (willBeSent) {
+      // モーダルを表示させるだけで、ここではUI更新・API通信は行わない
+      onKarikariClick(postId, catName);
+      return;
+    }
+
+    // カリカリを取り消す場合
+    lastActionTimeRef.current = Date.now();
     setKarikariSentIds(prev => {
       const next = new Set(prev);
-      willBeSent ? next.add(postId) : next.delete(postId);
+      next.delete(postId);
       return next;
     });
     setPosts(prev =>
       prev.map(p =>
         p.id === postId
-          ? { ...p, churru_count: Math.max(0, p.churru_count + (willBeSent ? 1 : -1)) }
+          ? { ...p, churru_count: Math.max(0, p.churru_count - 1) }
           : p
       )
     );
+    onToast('カリカリを下げたよ 🐾');
 
-    if (willBeSent) {
-      onKarikariClick(postId, catName);
-    } else {
-      onToast('カリカリを下げたよ 🐾');
-    }
-
-    // バックグラウンドでサーバー送信
     try {
       const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
       const res = await fetch('/api/karikari', {
@@ -258,13 +263,13 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
         // ロールバック
         setKarikariSentIds(prev => {
           const next = new Set(prev);
-          willBeSent ? next.delete(postId) : next.add(postId);
+          next.add(postId);
           return next;
         });
         setPosts(prev =>
           prev.map(p =>
             p.id === postId
-              ? { ...p, churru_count: Math.max(0, p.churru_count + (willBeSent ? -1 : 1)) }
+              ? { ...p, churru_count: p.churru_count + 1 }
               : p
           )
         );
