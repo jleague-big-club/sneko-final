@@ -209,6 +209,27 @@ export default function SharedHeader({ user, onLoginClick, onLogoutClick, active
             >
               にゃんJ
             </Link>
+            <Link 
+              href="/sponsor" 
+              style={{ 
+                color: activeTab === 'sponsor' ? '#111' : 'rgba(255,255,255,0.7)',
+                backgroundColor: activeTab === 'sponsor' ? '#ffd700' : 'rgba(255,255,255,0.05)',
+                fontWeight: activeTab === 'sponsor' ? 'bold' : 'normal',
+                textDecoration: 'none',
+                fontSize: '13px',
+                letterSpacing: '0.05em',
+                padding: '8px 16px',
+                borderRadius: '24px',
+                transition: 'all 0.2s ease',
+                border: activeTab === 'sponsor' ? '1px solid #ffd700' : '1px solid rgba(255,255,255,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span>👑</span>
+              <span>スポンサー</span>
+            </Link>
           </div>
 
           {/* 開発環境用の投稿トリガーボタン */}

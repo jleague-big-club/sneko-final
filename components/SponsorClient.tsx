@@ -23,12 +23,15 @@ export default function SponsorClient() {
 
   useEffect(() => {
     if (user) {
-      // Premium check
-      supabaseClient.from('profiles').select('is_premium').eq('id', user.id).single()
-        .then(({ data }) => {
+      const checkPremium = async () => {
+        try {
+          const { data } = await supabaseClient.from('profiles').select('is_premium').eq('id', user.id).single();
           if (data && data.is_premium) setIsPremium(true);
-        })
-        .catch(err => console.error("Could not fetch premium status", err));
+        } catch (err) {
+          console.error("Could not fetch premium status", err);
+        }
+      };
+      checkPremium();
     }
   }, [user]);
 
@@ -103,7 +106,7 @@ export default function SponsorClient() {
                       createSubscription={(data, actions) => {
                         return actions.subscription.create({
                           plan_id: process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID!
-                        });
+                        }).then((orderId) => orderId);
                       }}
                       onApprove={async (data, actions) => {
                         try {
