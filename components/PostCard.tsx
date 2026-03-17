@@ -49,7 +49,17 @@ export default function PostCard({
       {/* ヘッダー: アバター + 猫名 + 時刻 */}
       <div className="post-header">
         <Link href={`/cat/${post.cats?.name}`} style={{ display: 'flex', gap: '12px', textDecoration: 'none', color: 'inherit' }}>
-          <div className="cat-avatar">{catEmoji}</div>
+          <div className="cat-avatar">
+            {catEmoji.startsWith('/') ? (
+              <img 
+                src={catEmoji} 
+                alt={post.cats?.name ?? 'cat'} 
+                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+              />
+            ) : (
+              catEmoji
+            )}
+          </div>
           <div className="cat-info">
             <div className="cat-name">{post.cats?.name ?? '???'}</div>
             <div className="post-time">{timeAgo(post.created_at)}</div>

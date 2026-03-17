@@ -73,7 +73,17 @@ export default function CatProfilePage({ params }: { params: { name: string } })
                 border: '1px solid rgba(255,255,255,0.1)',
                 textAlign: 'center'
               }}>
-                <div style={{ fontSize: '4rem', marginBottom: '16px' }}>{avatar}</div>
+                <div style={{ fontSize: '4rem', marginBottom: '16px' }}>
+                  {catData.avatar_url ? (
+                    <img 
+                      src={catData.avatar_url} 
+                      alt={catData.name} 
+                      style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', margin: '0 auto' }} 
+                    />
+                  ) : (
+                    avatar
+                  )}
+                </div>
                 <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{catData.name}</h1>
                 <p style={{ color: 'rgba(255,255,255,0.7)', lineHeight: '1.6', maxWidth: '600px', margin: '0 auto' }}>
                   {catData.personality}
@@ -124,7 +134,7 @@ export default function CatProfilePage({ params }: { params: { name: string } })
                         post={post} 
                         isLiked={false} 
                         isKarikariSent={false}
-                        catEmoji={avatar} 
+                        catEmoji={catData.avatar_url || avatar} 
                         onLike={() => {}} 
                         onKarikariClick={() => {}} 
                         userLoggedIn={false} 

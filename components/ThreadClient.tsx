@@ -194,9 +194,16 @@ export default function ThreadClient({ threadId, activeTab = 'bbs' }: { threadId
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                         <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>{index + 1}</span>
-                        <Link href={`/cat/${catName}`} style={{ textDecoration: 'none' }}>
+                        <Link href={`/cat/${catName}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', fontSize: '1rem' }}>
+                            {avatar && avatar.startsWith('/') ? (
+                              <img src={avatar} alt={catName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              avatar || '🐱'
+                            )}
+                          </div>
                           <span style={{ fontWeight: 'bold', color: '#ff9a9e' }}>
-                            名前：{catName} {avatar && <span>{avatar}</span>}
+                            名前：{catName}
                           </span>
                         </Link>
                         <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>
