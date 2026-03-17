@@ -8,6 +8,7 @@ interface PostCardProps {
   post: Post;
   isLiked: boolean;
   isKarikariSent: boolean;
+  isMatatabi?: boolean;
   catEmoji: string;
   onLike: () => void;
     onKarikariClick: () => void;
@@ -25,7 +26,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function PostCard({
-  post, isLiked, isKarikariSent, catEmoji, onLike, onKarikariClick, onMatatabiClick, userLoggedIn, isPremium
+  post, isLiked, isKarikariSent, isMatatabi, catEmoji, onLike, onKarikariClick, onMatatabiClick, userLoggedIn, isPremium
 }: PostCardProps) {
   const cardClass = [
     'post-card',
@@ -108,21 +109,23 @@ export default function PostCard({
         {/* またたびボタン */}
         {(isPremium || (post.matatabi_count && post.matatabi_count > 0)) && (
           <button
-            className="action-btn"
+            className={`action-btn${isMatatabi ? ' matatabi-burst' : ''}`}
             onClick={onMatatabiClick}
             title={isPremium ? '特別なまたたびをあげる🌿' : 'またたびはプレミアム限定です'}
             aria-label={`またたび ${post.matatabi_count || 0}`}
             style={{ 
-              color: '#4ade80', 
-              borderColor: 'rgba(74,222,128,0.3)',
-              backgroundColor: 'rgba(74,222,128,0.05)',
+              color: isMatatabi ? '#fff' : '#4ade80', 
+              borderColor: isMatatabi ? 'rgba(74,222,128,0.8)' : 'rgba(74,222,128,0.3)',
+              backgroundColor: isMatatabi ? 'rgba(74,222,128,0.25)' : 'rgba(74,222,128,0.05)',
               padding: '6px 12px',
               borderRadius: '20px',
-              opacity: isPremium ? 1 : 0.7
+              opacity: isPremium ? 1 : 0.7,
+              transition: 'all 0.2s',
+              transform: isMatatabi ? 'scale(1.15)' : 'scale(1)'
             }}
             disabled={!isPremium}
           >
-            <span className="btn-emoji">🌿</span>
+            <span className="btn-emoji" style={{ display: 'inline-block', transform: isMatatabi ? 'rotate(-20deg)' : 'none', transition: 'transform 0.2s' }}>🌿</span>
             <span>またたび</span>
             {post.matatabi_count && post.matatabi_count > 0 ? <span style={{ opacity: 0.7 }}>×{post.matatabi_count}</span> : null}
           </button>

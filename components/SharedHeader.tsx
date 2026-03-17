@@ -15,12 +15,22 @@ export default function SharedHeader({ user, onLoginClick, onLogoutClick, active
   const [showMenu, setShowMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [userToken, setUserToken] = useState<string>();
+  const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
     if (user) {
       supabaseClient.auth.getSession().then(({ data }) => {
-        setUserToken(data.session?.access_token);
+        const token = data.session?.access_token;
+        setUserToken(token);
+        if (token) {
+          fetch('/api/subscription/status', { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.json())
+            .then(d => setIsPremium(d.isPremium || false))
+            .catch(() => {});
+        }
       });
+    } else {
+      setIsPremium(false);
     }
   }, [user]);
 
@@ -72,8 +82,16 @@ export default function SharedHeader({ user, onLoginClick, onLogoutClick, active
                   e.stopPropagation();
                   setShowMenu(!showMenu);
                 }}
+                style={{ position: 'relative' }}
               >
                 {(user.email ?? 'U')[0].toUpperCase()}
+                {isPremium && (
+                  <span style={{
+                    position: 'absolute', top: '-6px', right: '-6px',
+                    fontSize: '12px', lineHeight: 1,
+                    filter: 'drop-shadow(0 0 4px gold)'
+                  }}>👑</span>
+                )}
               </button>
               
               {showMenu && (

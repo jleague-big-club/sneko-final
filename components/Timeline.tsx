@@ -59,6 +59,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [karikariSentIds, setKarikariSentIds] = useState<Set<string>>(new Set());
   const [isPremium, setIsPremium] = useState(false);
+  const [matatabiBurstIds, setMatatabiBurstIds] = useState<Set<string>>(new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActionTimeRef = useRef<number>(0);
 
@@ -303,6 +304,17 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
     );
     onToast('🌿 またたびをあげたよ！');
 
+    // meow2.mp3 再生
+    try {
+      const audio = new Audio('/sounds/meow2.mp3');
+      audio.volume = 0.7;
+      audio.play().catch(() => {});
+    } catch {}
+
+    // バースト演出
+    setMatatabiBurstIds(prev => { const next = new Set(prev); next.add(postId); return next; });
+    setTimeout(() => setMatatabiBurstIds(prev => { const next = new Set(prev); next.delete(postId); return next; }), 800);
+
     try {
       const token = (await supabaseClient.auth.getSession()).data.session?.access_token;
       await fetch('/api/matatabi', {
@@ -341,6 +353,7 @@ const Timeline = forwardRef<TimelineRef, TimelineProps>(({ user, onNeedAuth, onK
           post={post}
           isLiked={likedIds.has(post.id)}
           isKarikariSent={karikariSentIds.has(post.id)}
+          isMatatabi={matatabiBurstIds.has(post.id)}
           catEmoji={CAT_EMOJI[post.cats?.name ?? ''] ?? '🐱'}
           onLike={() => handleLike(post.id)}
           onKarikariClick={() => handleKarikari(post.id, post.cats?.name ?? '猫')}
