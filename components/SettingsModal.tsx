@@ -14,6 +14,9 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -21,12 +24,42 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
     if (stored !== null) {
       setSoundEnabled(stored === 'true');
     }
-  }, []);
+    // プレミアム状態を確認
+    if (userToken) {
+      fetch('/api/subscription/status', {
+        headers: { Authorization: `Bearer ${userToken}` }
+      }).then(r => r.json()).then(d => setIsPremium(d.isPremium || false)).catch(() => {});
+    }
+  }, [userToken]);
 
   const toggleSound = () => {
     const next = !soundEnabled;
     setSoundEnabled(next);
     localStorage.setItem('sn-neko-s-sound', String(next));
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!userToken) return;
+    setIsCancelling(true);
+    try {
+      const res = await fetch('/api/subscription/cancel', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${userToken}` }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert('スポンサー登録を解約しました。またいつでも！🐾');
+        setIsPremium(false);
+        setShowConfirmCancel(false);
+      } else {
+        alert('解約に失敗しました: ' + (data.error || '不明なエラー'));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('エラーが発生しました。');
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -37,11 +70,16 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
     
     setIsDeleting(true);
     try {
+      // プレミアムの場合は先にサブスクを解約
+      if (isPremium) {
+        await fetch('/api/subscription/cancel', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${userToken}` }
+        });
+      }
       const res = await fetch('/api/user/delete', { 
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${userToken}`
-        }
+        headers: { 'Authorization': `Bearer ${userToken}` }
       });
       const data = await res.json();
       
@@ -104,20 +142,51 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
             </button>
           </div>
 
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '24px' }}>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* スポンサー解約ボタン */}
+            {isPremium && (
+              <div>
+                {!showConfirmCancel ? (
+                  <button
+                    onClick={() => setShowConfirmCancel(true)}
+                    style={{
+                      width: '100%', padding: '12px', borderRadius: '12px',
+                      border: '1px solid rgba(255,215,0,0.4)',
+                      backgroundColor: 'transparent', color: '#ffd700',
+                      cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,215,0,0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    👑 スポンサー登録を解約する
+                  </button>
+                ) : (
+                  <div style={{ padding: '16px', backgroundColor: 'rgba(255,215,0,0.05)', borderRadius: '12px', border: '1px solid rgba(255,215,0,0.3)' }}>
+                    <div style={{ color: '#ffd700', fontWeight: 'bold', marginBottom: '12px', textAlign: 'center', fontSize: '0.9rem' }}>
+                      解約すると特典が失われます。<br/>本当によろしいですか？
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button onClick={() => setShowConfirmCancel(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', cursor: 'pointer' }}>
+                        やめる
+                      </button>
+                      <button onClick={handleCancelSubscription} disabled={isCancelling} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: '#ffd700', color: '#111', cursor: 'pointer', fontWeight: 'bold' }}>
+                        {isCancelling ? '処理中...' : '解約する'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* アカウント削除ボタン */}
             {!showConfirmDelete ? (
               <button 
                 onClick={() => setShowConfirmDelete(true)}
                 style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '12px',
+                  width: '100%', padding: '12px', borderRadius: '12px',
                   border: '1px solid rgba(255,77,77,0.5)',
-                  backgroundColor: 'transparent',
-                  color: '#ff4d4d',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontSize: '0.9rem'
+                  backgroundColor: 'transparent', color: '#ff4d4d',
+                  cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,77,77,0.1)'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -125,44 +194,15 @@ export default function SettingsModal({ onClose, onLogout, userToken }: Props) {
                 アカウントを完全に削除する
               </button>
             ) : (
-              <div style={{ 
-                padding: '16px', 
-                backgroundColor: 'rgba(255,77,77,0.1)', 
-                borderRadius: '12px',
-                border: '1px solid rgba(255,77,77,0.3)'
-              }}>
+              <div style={{ padding: '16px', backgroundColor: 'rgba(255,77,77,0.1)', borderRadius: '12px', border: '1px solid rgba(255,77,77,0.3)' }}>
                 <div style={{ color: '#ff4d4d', fontWeight: 'bold', marginBottom: '12px', textAlign: 'center', fontSize: '0.95rem' }}>
-                  本当に削除しますか？<br/>猫の思い出もすべて消えてしまいます。
+                  本当に削除しますか？<br/>猫の思い出もすべて消えてしまいます。{isPremium && <><br/><span style={{fontSize:'0.85rem'}}>（スポンサー登録も同時に解約されます）</span></>}
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                  <button 
-                    onClick={() => setShowConfirmDelete(false)}
-                    style={{ 
-                      flex: 1, 
-                      padding: '10px', 
-                      borderRadius: '8px', 
-                      border: '1px solid rgba(255,255,255,0.2)', 
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#fff',
-                      cursor: 'pointer' 
-                    }}
-                  >
+                  <button onClick={() => setShowConfirmDelete(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', cursor: 'pointer' }}>
                     やめる
                   </button>
-                  <button 
-                    onClick={handleDeleteAccount}
-                    disabled={isDeleting}
-                    style={{ 
-                      flex: 1, 
-                      padding: '10px', 
-                      borderRadius: '8px', 
-                      border: 'none', 
-                      backgroundColor: '#ff4d4d', 
-                      color: '#fff', 
-                      cursor: 'pointer',
-                      fontWeight: 'bold'
-                    }}
-                  >
+                  <button onClick={handleDeleteAccount} disabled={isDeleting} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: '#ff4d4d', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
                     {isDeleting ? '中...' : '削除実行'}
                   </button>
                 </div>
